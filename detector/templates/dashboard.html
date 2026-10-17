@@ -31,11 +31,14 @@
   .stat { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; }
   .stat b { display: block; font-size: 22px; font-variant-numeric: tabular-nums; }
   .stat span { color: var(--muted); font-size: 12px; }
+  .stat.ok b { color: var(--safe); } .stat.tampered { background: var(--bad-bg); } .stat.tampered b { color: var(--bad); }
+  .stat.pending b, .stat.unavailable b { color: var(--muted); }
   .wrap { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; overflow-x: auto; }
   table { width: 100%; border-collapse: collapse; font-size: 13px; }
   th, td { text-align: left; padding: 7px 10px; border-bottom: 1px solid var(--line); white-space: nowrap; }
   th { color: var(--muted); font-weight: 600; font-size: 12px; position: sticky; top: 0; background: var(--panel); }
-  td.reason { white-space: normal; min-width: 280px; }
+  td.reason { white-space: normal; min-width: 320px; }
+  td.reason small { display: block; color: var(--muted); font-size: 11px; margin-top: 2px; }
   tr.rule  td { background: var(--bad-bg); }
   tr.model td { background: var(--warn-bg); }
   .tag { display: inline-block; padding: 1px 8px; border-radius: 99px; font-size: 11px; font-weight: 700; }
@@ -59,6 +62,7 @@
     <div class="stat"><b id="c-strong">–</b><span>post-quantum (strong)</span></div>
     <div class="stat"><b id="c-rule">0</b><span>downgrade alerts (rule)</span></div>
     <div class="stat"><b id="c-model">0</b><span>anomaly alerts (AI model)</span></div>
+    <div class="stat" id="seal-tile" title=""><b id="seal">–</b><span>log integrity (ML-DSA seals)</span></div>
   </div>
 
   <div class="wrap">
@@ -82,6 +86,12 @@ async function refresh() {
     document.getElementById("c-rule").textContent = c.rule || 0;
     document.getElementById("c-model").textContent = c.model || 0;
 
+    const seal = s.seal, tile = document.getElementById("seal-tile");
+    tile.className = "stat " + seal.status;
+    tile.title = seal.detail;
+    document.getElementById("seal").textContent = {ok: `✓ intact (${seal.lines})`, pending: "sealing…",
+      tampered: "✗ TAMPERED", unavailable: "not sealed"}[seal.status];
+
     const b = document.getElementById("banner");
     const latest = s.events.find(e => e.alert);
     b.className = "banner " + (s.under_attack ? "bad" : "safe");
@@ -100,7 +110,7 @@ async function refresh() {
         <td class="mono">${(e.key_groups_offered || []).map(pq).join(", ")}</td>
         <td class="mono">${pq(e.key_group_chosen)}</td>
         <td>${e.by ? `<span class="tag ${e.by}">${e.by === "rule" ? "DOWNGRADE" : "AI ANOMALY"}</span>` : `<span class="tag ok">OK</span>`}</td>
-        <td class="reason">${e.alert ? esc(e.reason) : ""}</td>
+        <td class="reason">${e.alert ? `${esc(e.plain)}<small>${esc(e.reason)}</small>` : ""}</td>
       </tr>`).join("");
   } catch (err) {
     document.getElementById("updated").textContent = "dashboard server unreachable";

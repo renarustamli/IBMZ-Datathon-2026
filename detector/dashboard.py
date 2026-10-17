@@ -15,16 +15,20 @@ from collections import Counter, deque
 from flask import Flask, jsonify, render_template
 
 from detector import Detector, LOGS
-from schema import read_notes
+from explain import explain
+import seal_check
+from schema import read_notes, normalize
 
 LOG_FILE = os.environ.get("LOG_FILE", os.path.join(LOGS, "connections.jsonl"))
 TRAIN_FILE = os.environ.get("TRAIN_FILE", os.path.join(LOGS, "normal_traffic.jsonl"))
 RED_WINDOW = 20  # banner stays red while any of the last N connections alerted
+SEAL_EVERY = 10  # seconds between log-integrity checks (pure-Python ML-DSA verify is slow)
 
 app = Flask(__name__)
 lock = threading.Lock()
 recent = deque(maxlen=200)
 counts = Counter()
+seal = {"status": "unavailable", "lines": 0, "detail": "checking…"}
 detector = Detector().train(read_notes(TRAIN_FILE))
 detector.reset()  # live clients are judged on their own history, not the training clients'
 
@@ -52,10 +56,11 @@ def tail():
                 if not line.strip():
                     continue
                 try:
-                    note = json.loads(line)
+                    note = normalize(json.loads(line))
                     r = detector.check(note)
+                    r["plain"] = explain(note, r)
                 except Exception as e:  # a malformed note must not kill the feed
-                    note, r = {"raw": line.strip()}, {"alert": False, "by": None, "reason": f"unparsed: {e}", "score": 0}
+                    note, r = {"raw": line.strip()}, {"alert": False, "by": None, "reason": f"unparsed: {e}", "score": 0, "plain": ""}
                 with lock:
                     recent.append({**note, **r})
                     counts["total"] += 1
@@ -63,6 +68,15 @@ def tail():
                     if r["by"]:
                         counts[r["by"]] += 1
         time.sleep(0.5)
+
+
+def seal_loop():
+    global seal
+    while True:
+        result = seal_check.check(LOG_FILE)
+        with lock:
+            seal = result
+        time.sleep(SEAL_EVERY)
 
 
 @app.route("/")
@@ -75,11 +89,13 @@ def state():
     with lock:
         events = list(recent)[::-1]
         c = dict(counts)
+        s = dict(seal)
     under_attack = any(e["alert"] for e in events[:RED_WINDOW])
     return jsonify(under_attack=under_attack, counts=c, events=events[:100],
-                   threshold=detector.threshold)
+                   threshold=detector.threshold, seal=s)
 
 
 if __name__ == "__main__":
     threading.Thread(target=tail, daemon=True).start()
+    threading.Thread(target=seal_loop, daemon=True).start()
     app.run(host=os.environ.get("HOST", "127.0.0.1"), port=int(os.environ.get("PORT", 5000)))
