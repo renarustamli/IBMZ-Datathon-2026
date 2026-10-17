@@ -56,9 +56,27 @@ def format_ts(dt):
     return dt.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.%fZ")
 
 
+# Field names the gateway skeleton (a-gateway, gateway/main.go) writes instead of §1's.
+ALIASES = {"time": "ts", "cipher": "cipher_suite", "keys_offered": "key_groups_offered",
+           "key_chosen": "key_group_chosen", "strength": "strong_or_weak"}
+
+
+def normalize(note):
+    """Map any accepted spelling of a note onto the §1 field names."""
+    n = dict(note)
+    for alt, field in ALIASES.items():
+        if field not in n and alt in n:
+            n[field] = n.pop(alt)
+    # Gateway placeholder client_id: fall back to the remote IP (port stripped, IPv6-safe).
+    if n.get("client_id") in (None, "", "unknown") and n.get("client"):
+        n["client_id"] = str(n["client"]).rsplit(":", 1)[0].strip("[]")
+    n["key_groups_offered"] = list(n.get("key_groups_offered") or [])
+    return n
+
+
 def read_notes(path):
     with open(path) as f:
-        return [json.loads(line) for line in f if line.strip()]
+        return [normalize(json.loads(line)) for line in f if line.strip()]
 
 
 def write_notes(path, notes):
