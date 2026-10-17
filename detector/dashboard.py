@@ -16,16 +16,19 @@ from flask import Flask, jsonify, render_template
 
 from detector import Detector, LOGS
 from explain import explain
+import seal_check
 from schema import read_notes, normalize
 
 LOG_FILE = os.environ.get("LOG_FILE", os.path.join(LOGS, "connections.jsonl"))
 TRAIN_FILE = os.environ.get("TRAIN_FILE", os.path.join(LOGS, "normal_traffic.jsonl"))
 RED_WINDOW = 20  # banner stays red while any of the last N connections alerted
+SEAL_EVERY = 10  # seconds between log-integrity checks (pure-Python ML-DSA verify is slow)
 
 app = Flask(__name__)
 lock = threading.Lock()
 recent = deque(maxlen=200)
 counts = Counter()
+seal = {"status": "unavailable", "lines": 0, "detail": "checking…"}
 detector = Detector().train(read_notes(TRAIN_FILE))
 detector.reset()  # live clients are judged on their own history, not the training clients'
 
@@ -67,6 +70,15 @@ def tail():
         time.sleep(0.5)
 
 
+def seal_loop():
+    global seal
+    while True:
+        result = seal_check.check(LOG_FILE)
+        with lock:
+            seal = result
+        time.sleep(SEAL_EVERY)
+
+
 @app.route("/")
 def index():
     return render_template("dashboard.html", log_file=os.path.relpath(LOG_FILE))
@@ -77,11 +89,13 @@ def state():
     with lock:
         events = list(recent)[::-1]
         c = dict(counts)
+        s = dict(seal)
     under_attack = any(e["alert"] for e in events[:RED_WINDOW])
     return jsonify(under_attack=under_attack, counts=c, events=events[:100],
-                   threshold=detector.threshold)
+                   threshold=detector.threshold, seal=s)
 
 
 if __name__ == "__main__":
     threading.Thread(target=tail, daemon=True).start()
+    threading.Thread(target=seal_loop, daemon=True).start()
     app.run(host=os.environ.get("HOST", "127.0.0.1"), port=int(os.environ.get("PORT", 5000)))
