@@ -14,3 +14,8 @@ gateway/testclient/testclient
 gateway/bench/bench
 gateway/gencert/gencert
 gateway/probe/
+
+# attacker (C)
+test_bad/
+captures/
+legacy_server/connection_notes.jsonl
