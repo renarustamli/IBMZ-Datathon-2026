@@ -30,7 +30,8 @@ CIPHER_STRENGTH = {
 
 
 def is_pqc(group):
-    return group in PQC_GROUPS or "MLKEM" in str(group).upper()
+    g = str(group).upper()
+    return group in PQC_GROUPS or "MLKEM" in g or "KYBER" in g
 
 
 def cipher_strength(suite):
@@ -70,8 +71,35 @@ def normalize(note):
     # Gateway placeholder client_id: fall back to the remote IP (port stripped, IPv6-safe).
     if n.get("client_id") in (None, "", "unknown") and n.get("client"):
         n["client_id"] = str(n["client"]).rsplit(":", 1)[0].strip("[]")
-    n["key_groups_offered"] = list(n.get("key_groups_offered") or [])
+    n["key_groups_offered"] = [group_name(g) for g in (n.get("key_groups_offered") or [])]
+    if "key_group_chosen" in n:
+        n["key_group_chosen"] = group_name(n["key_group_chosen"])
+    # Go writes "TLS 1.3"; normal traffic uses "TLSv1.3".
+    v = str(n.get("tls_version", ""))
+    if v.startswith("TLS 1."):
+        n["tls_version"] = "TLSv" + v[4:]
     return n
+
+
+# IANA TLS supported-group codepoints. Go prints groups it has no name for as
+# "CurveID(4588)"; the gateway writes them as "other-4588".
+GROUP_CODES = {
+    23: "secp256r1", 24: "secp384r1", 25: "secp521r1", 29: "x25519", 256: "ffdhe2048",
+    4587: "SecP256r1MLKEM768", 4588: "X25519MLKEM768", 4589: "SecP384r1MLKEM1024",
+    25497: "X25519Kyber768Draft00",
+}
+
+
+# Go's crypto/tls names for classical groups.
+GO_NAMES = {"X25519": "x25519", "CurveP256": "secp256r1", "CurveP384": "secp384r1", "CurveP521": "secp521r1"}
+
+
+def group_name(g):
+    s = str(g).strip()
+    code = s.removeprefix("other-").removeprefix("CurveID(").removesuffix(")")
+    if code.isdigit():
+        return GROUP_CODES.get(int(code), s)
+    return GO_NAMES.get(s, s)
 
 
 def read_notes(path):
