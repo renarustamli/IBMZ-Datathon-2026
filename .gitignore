@@ -4,3 +4,13 @@ __pycache__/
 *.pyc
 .DS_Store
 .venv/
+
+# gateway (A)
+*.pem
+gateway/gateway
+gateway/testclient/testclient
+*.log
+*.out
+gateway/bench/bench
+gateway/gencert/gencert
+gateway/probe/

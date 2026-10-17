@@ -1,0 +1,3 @@
+mode,handshakes,mean_ms,p50_ms,p95_ms,client_handshake_bytes_sent,client_handshake_bytes_recv,throughput_MBps
+classical X25519,500,0.702,0.611,0.950,320,743,2371.1
+hybrid X25519MLKEM768,500,1.033,0.943,1.273,1504,1832,2224.5
