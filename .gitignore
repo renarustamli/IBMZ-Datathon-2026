@@ -12,3 +12,5 @@ gateway/gateway
 gateway/testclient/testclient
 *.log
 run/
+*.out
+gateway/bench/bench
