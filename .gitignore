@@ -2,3 +2,6 @@ test_bad/
 captures/
 legacy_server/connection_notes.jsonl
 __pycache__/
+.venv/
+captures_gateway/
+standin_gateway/connection_notes.jsonl
