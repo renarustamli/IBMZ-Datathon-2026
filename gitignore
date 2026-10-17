@@ -1,0 +1,3 @@
+# private keys: never commit
+keys/
+*.key
