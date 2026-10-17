@@ -35,7 +35,8 @@
   table { width: 100%; border-collapse: collapse; font-size: 13px; }
   th, td { text-align: left; padding: 7px 10px; border-bottom: 1px solid var(--line); white-space: nowrap; }
   th { color: var(--muted); font-weight: 600; font-size: 12px; position: sticky; top: 0; background: var(--panel); }
-  td.reason { white-space: normal; min-width: 280px; }
+  td.reason { white-space: normal; min-width: 320px; }
+  td.reason small { display: block; color: var(--muted); font-size: 11px; margin-top: 2px; }
   tr.rule  td { background: var(--bad-bg); }
   tr.model td { background: var(--warn-bg); }
   .tag { display: inline-block; padding: 1px 8px; border-radius: 99px; font-size: 11px; font-weight: 700; }
@@ -100,7 +101,7 @@ async function refresh() {
         <td class="mono">${(e.key_groups_offered || []).map(pq).join(", ")}</td>
         <td class="mono">${pq(e.key_group_chosen)}</td>
         <td>${e.by ? `<span class="tag ${e.by}">${e.by === "rule" ? "DOWNGRADE" : "AI ANOMALY"}</span>` : `<span class="tag ok">OK</span>`}</td>
-        <td class="reason">${e.alert ? esc(e.reason) : ""}</td>
+        <td class="reason">${e.alert ? `${esc(e.plain)}<small>${esc(e.reason)}</small>` : ""}</td>
       </tr>`).join("");
   } catch (err) {
     document.getElementById("updated").textContent = "dashboard server unreachable";

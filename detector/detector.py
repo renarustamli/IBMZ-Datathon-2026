@@ -43,8 +43,7 @@ EXPLAIN = {
     "new_group_set": "key-group set never seen from this client",
     "conn_per_min": "connection burst (per minute)",
     "conn_per_10min": "unusually high connection rate (per 10 min)",
-    "hour_sin": "unusual time of day",
-    "hour_cos": "unusual time of day",
+    "hour": "unusual time of day",
 }
 
 
@@ -151,22 +150,24 @@ class Detector:
         score = self._score(x) if self.model else 0.0
         rule = self._rule(note, c)
         if rule:
-            out = {"alert": True, "by": "rule", "reason": rule}
+            out = {"alert": True, "by": "rule", "reason": rule, "factors": ["pqc_stripped"]}
         elif self.model and score > self.threshold:
-            why = self._why(x, score)
+            factors = self._why(x, score)
+            why = "; ".join(EXPLAIN[f] for f in factors) or "unusual combination of handshake features"
             if c.downgrades:  # context only: as a feature it would keep the client red forever
                 why += f"; client already had {c.downgrades} downgrade alert(s)"
-            out = {"alert": True, "by": "model", "reason": "ANOMALY: " + why}
+            out = {"alert": True, "by": "model", "reason": "ANOMALY: " + why, "factors": factors}
         else:
-            out = {"alert": False, "by": None, "reason": "normal"}
+            out = {"alert": False, "by": None, "reason": "normal", "factors": []}
+        out["prior_downgrades"] = c.downgrades
         out["score"] = round(score, 4)
         self._update(note, c, bool(rule))
         return out
 
     def _why(self, x, score):
         """Features outside anything seen in normal traffic, then the features whose
-        replacement by a typical value lowers the anomaly score the most."""
-        out = [EXPLAIN[f] for f, v, lo, hi in zip(FEATURES, x, self.lo, self.hi)
+        replacement by a typical value lowers the anomaly score the most. Returns feature names."""
+        out = [f for f, v, lo, hi in zip(FEATURES, x, self.lo, self.hi)
                if v < lo - 1e-9 or v > hi + 1e-9]
         trial = np.tile(np.asarray(x, dtype=float), (len(x), 1))
         np.fill_diagonal(trial, self.median)
@@ -174,9 +175,9 @@ class Detector:
         for i in np.argsort(-drops):
             if drops[i] < 0.2 * score:
                 break
-            out.append(EXPLAIN[FEATURES[i]])
-        out = list(dict.fromkeys(out))
-        return "; ".join(out[:3]) or "unusual combination of handshake features"
+            out.append(FEATURES[i])
+        out = [f.replace("hour_sin", "hour").replace("hour_cos", "hour") for f in out]
+        return list(dict.fromkeys(out))[:3]
 
 
 def self_test():

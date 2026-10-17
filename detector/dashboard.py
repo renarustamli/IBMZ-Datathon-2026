@@ -15,6 +15,7 @@ from collections import Counter, deque
 from flask import Flask, jsonify, render_template
 
 from detector import Detector, LOGS
+from explain import explain
 from schema import read_notes
 
 LOG_FILE = os.environ.get("LOG_FILE", os.path.join(LOGS, "connections.jsonl"))
@@ -54,8 +55,9 @@ def tail():
                 try:
                     note = json.loads(line)
                     r = detector.check(note)
+                    r["plain"] = explain(note, r)
                 except Exception as e:  # a malformed note must not kill the feed
-                    note, r = {"raw": line.strip()}, {"alert": False, "by": None, "reason": f"unparsed: {e}", "score": 0}
+                    note, r = {"raw": line.strip()}, {"alert": False, "by": None, "reason": f"unparsed: {e}", "score": 0, "plain": ""}
                 with lock:
                     recent.append({**note, **r})
                     counts["total"] += 1
