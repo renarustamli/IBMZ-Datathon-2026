@@ -44,6 +44,13 @@ docker compose down
 
 `testclient -local 127.0.0.1:9100 -id alice-laptop` listens for plain TCP on 9100 and carries each connection to the gateway over hybrid TLS. A client that can't do ML-KEM itself (e.g. Python with OpenSSL 3.0) connects to 9100 unchanged. Add `-classical` to simulate a downgraded client.
 
+Add `-record <dir>` to save each connection's **encrypted client-to-gateway bytes** as `session_NNN.json`. The format is the same as the legacy server's recordings, so the attacker tool can read both. This is what a "harvest now, decrypt later" eavesdropper on the network would get. Tested on LinuxONE: the attacker cracked 3 of 3 direct recordings, and 0 of 3 wire recordings through the gateway ("no RSA public key in this recording").
+
+Limits of what this shows:
+- The SNI client ID (e.g. `alice-laptop`) is visible in the recorded ClientHello. SNI is not encrypted.
+- The toy attacker only factors RSA. A failure here means the toy-RSA exchange no longer crosses the network. It does not test ML-KEM's strength.
+- Behind the gateway, the legacy server's own recordings are still crackable, because the gateway-to-backend leg is plaintext loopback on the same host.
+
 ### Modes
 
 | Mode | Accepted key exchange | Classical-only client |
