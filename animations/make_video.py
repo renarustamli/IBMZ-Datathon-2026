@@ -1,10 +1,10 @@
 """One continuous pitch video (no key presses): every animated section, then the dashboard footage.
 
-  python animations/make_video.py        -> animations/pitch_video.mp4
+  python animations/make_video.py              -> animations/pitch_video.mp4, sections back to back
+  python animations/make_video.py --narrated   -> holds each section's last frame for as long as its
+                                                  narration in PITCH_SCRIPT.md takes (150 words/min)
 
-Where the slideshow would wait for →, the video holds the section's last frame for as long
-as that section's narration in PITCH_SCRIPT.md takes to say (150 words a minute), so a
-voice-over recorded from the script lines up. Needs a render first (slides/Pitch.json).
+Needs a render first (slides/Pitch.json).
 """
 import json
 import re
@@ -35,18 +35,16 @@ def narration_words():
 
 
 def main():
+    narrated = "--narrated" in sys.argv[1:]
     slides = json.loads((HERE / "slides" / "Pitch.json").read_text())["slides"]
     clips = [HERE / s["file"] for s in slides] + [FOOTAGE]
-    words = narration_words()
-    if len(words) != len(clips):
-        sys.exit(f"PITCH_SCRIPT.md has {len(words)} sections but the video has {len(clips)}; keep them in step")
-
-    holds = []
-    for i, (clip, w) in enumerate(zip(clips, words)):
-        if clip == FOOTAGE:
-            holds.append(END_HOLD)   # the footage paces itself with its own captions
-        else:
-            holds.append(max(MIN_HOLD, w / WORDS_PER_SEC - duration(clip)))
+    holds = [0.0] * (len(clips) - 1) + [END_HOLD]
+    if narrated:
+        words = narration_words()
+        if len(words) != len(clips):
+            sys.exit(f"PITCH_SCRIPT.md has {len(words)} sections but the video has {len(clips)}; keep them in step")
+        # the footage paces itself with its own captions
+        holds = [max(MIN_HOLD, w / WORDS_PER_SEC - duration(c)) for c, w in zip(clips[:-1], words)] + [END_HOLD]
 
     args, chains = ["ffmpeg", "-v", "error", "-y"], []
     for i, (clip, hold) in enumerate(zip(clips, holds)):
@@ -59,7 +57,7 @@ def main():
     subprocess.run(args, check=True)
     total = duration(OUT)
     print(f"{OUT.name}: {total // 60:.0f}:{total % 60:04.1f}, {OUT.stat().st_size / 1e6:.1f} MB "
-          f"({len(clips)} sections, holds {min(holds):.1f}–{max(holds):.1f}s)")
+          f"({len(clips)} sections{', narration holds' if narrated else ', no pauses'})")
 
 
 if __name__ == "__main__":

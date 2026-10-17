@@ -24,4 +24,4 @@ cd "$HERE"   # manim-slides writes its slide data to ./slides
 [[ -f footage/dashboard.mp4 ]] || "$BIN/python" record_dashboard.py
 "$BIN/python" add_footage.py pitch.html footage/dashboard.mp4
 echo "animations/pitch.html ($(du -h pitch.html | cut -f1)) — open it, press F, then → to step through"
-"$BIN/python" make_video.py   # the same pitch as one MP4, holding each section for its narration
+"$BIN/python" make_video.py   # the same pitch as one MP4 (add --narrated for voice-over pauses)

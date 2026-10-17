@@ -23,6 +23,7 @@ ROOT = Path(__file__).resolve().parent.parent
 PY = str(ROOT / ".venv" / "bin" / "python")          # project venv: dashboard, feed, crypto
 OUT = ROOT / "animations" / "footage" / "dashboard.mp4"
 PORT = 5080
+FAST = 6                                               # fast-forward factor while waiting on the page
 VIEW = {"width": 1440, "height": 810}                  # x 4/3 device scale -> 1920x1080 frames
 FEED = ROOT / "demo_tools" / "handshake_feed.py"
 
@@ -115,12 +116,13 @@ def main():
             page.evaluate("document.querySelector('.sub .mono').textContent = 'connections.jsonl'")
             time.sleep(3)
 
-            stamps = []
+            stamps, speeds = [], []   # speed > 1: frame was captured while waiting, play it faster
 
-            def snap():
+            def snap(speed=1):
                 path = frames / f"{len(stamps):05d}.jpg"
                 page.screenshot(path=str(path), type="jpeg", quality=92)
                 stamps.append(time.time())
+                speeds.append(speed)
 
             def caption(text):
                 page.evaluate(CAPTION_JS, text)
@@ -128,12 +130,19 @@ def main():
             def scroll_to(selector, block="start"):
                 page.evaluate(f"document.querySelector({selector!r}).scrollIntoView({{behavior:'smooth',block:{block!r}}})")
 
-            def hold(seconds, until=None, timeout=25):
-                start = time.time()
+            def hold(seconds, until=None, timeout=25, text=None):
+                """Record for `seconds`; if still waiting for `until` after that, keep recording
+                but fast-forward those frames (FAST x) and say so in the caption."""
+                start, fast = time.time(), False
                 while True:
-                    snap()
                     waited = time.time() - start
+                    if waited >= seconds and until and not fast:
+                        fast = True
+                        caption(f"{text}  (sped up ×{FAST})")
+                    snap(FAST if fast else 1)
                     if waited >= seconds and (until is None or page.evaluate(until)):
+                        if fast:
+                            caption(text)
                         return
                     if waited > timeout:
                         print(f"  (gave up waiting for: {until})")
@@ -143,37 +152,38 @@ def main():
             tampered = "document.getElementById('seal').textContent.includes('TAMPERED')"
 
             steps = [
-                ("Live dashboard · simulated bank traffic through the gateway", None, 6, None),
-                ("Simulated attack: a client's post-quantum options are stripped", strip, 5, red),
-                ("The risk table puts the downgraded client first", lambda: scroll_to("#clients", "center"), 5, None),
+                ("Live dashboard · simulated bank traffic through the gateway", None, 3, None),
+                ("Simulated attack: a client's post-quantum options are stripped", strip, 3, red),
+                ("The risk table puts the downgraded client first", lambda: scroll_to("#clients", "center"), 3, None),
                 ("Simulated attack: subtler anomalies that no fixed rule catches",
-                 lambda: (scroll_to("#c-scores", "center"), inject("forced_classical"), inject("cipher_downgrade")), 7, None),
+                 lambda: (scroll_to("#c-scores", "center"), inject("forced_classical"), inject("cipher_downgrade")), 4, None),
                 ("The attacker edits the audit log to cover their tracks",
-                 lambda: (scroll_to("main", "start"), tamper()), 3, tampered),
-                ("ML-DSA seals catch the edit", None, 4, None),
+                 lambda: (scroll_to("main", "start"), tamper()), 1.5, tampered),
+                ("ML-DSA seals catch the edit", None, 2.5, None),
             ]
             for i, (text, action, seconds, until) in enumerate(steps, 1):
                 print(f"  step {i}/{len(steps)}: {text}")
                 caption(text)
                 if action:
                     action()
-                hold(seconds, until)
+                hold(seconds, until, text=text)
             caption(None)
-            hold(1)
+            hold(0.5)
             browser.close()
 
-        # one frame per screenshot, each shown for exactly as long as it really lasted
+        # one frame per screenshot, shown for as long as it really lasted (÷ FAST while waiting)
         concat = work / "frames.txt"
         with open(concat, "w") as f:
             for i in range(len(stamps)):
-                dur = (stamps[i + 1] - stamps[i]) if i + 1 < len(stamps) else 0.1
+                dur = ((stamps[i + 1] - stamps[i]) if i + 1 < len(stamps) else 0.1) / speeds[i]
                 f.write(f"file '{frames / f'{i:05d}.jpg'}'\nduration {dur:.4f}\n")
             f.write(f"file '{frames / f'{len(stamps) - 1:05d}.jpg'}'\n")
         OUT.parent.mkdir(parents=True, exist_ok=True)
         subprocess.run(["ffmpeg", "-v", "error", "-y", "-f", "concat", "-safe", "0", "-i", str(concat),
                         "-vf", "fps=30,format=yuv420p", "-c:v", "libx264", "-crf", "20", "-movflags", "+faststart",
                         str(OUT)], check=True)
-        print(f"{OUT.relative_to(ROOT)}: {len(stamps)} frames over {stamps[-1] - stamps[0]:.0f}s")
+        played = sum((b - a) / sp for a, b, sp in zip(stamps, stamps[1:], speeds))
+        print(f"{OUT.relative_to(ROOT)}: {played:.0f}s of video from {stamps[-1] - stamps[0]:.0f}s recorded")
     finally:
         for pr in procs:
             pr.terminate()

@@ -1,6 +1,6 @@
 # Pitch script
 
-Narration for the animated presentation (`animations/pitch.html`). Each section is one press of **→**: start speaking as the animation plays, press → when you finish the line. About 3½ minutes at a normal pace, including the 38-second dashboard footage at the end.
+Narration for the animated presentation (`animations/pitch.html`). Each section is one press of **→**: start speaking as the animation plays, press → when you finish the line. About 3½ minutes at a normal pace when presenting the slideshow. The no-pause `animations/pitch_video.mp4` runs 1:49, too fast to read all of this over: trim the lines, or build the paced version with `python3 animations/make_video.py --narrated`.
 
 ---
 
@@ -130,7 +130,7 @@ Narration for the animated presentation (`animations/pitch.html`). Each section 
 
 **→**
 
-### 19 · Dashboard footage (38 s, plays by itself; the captions say each step)
+### 19 · Dashboard footage (19 s, plays by itself; the captions say each step)
 *(Green dashboard → red banner → risk table → anomalies → TAMPERED)*
 
 > "Everything's green: about nine in ten connections are quantum-safe, and the rest come from legacy machines, which the dashboard lists as needing an upgrade.
