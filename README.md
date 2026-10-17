@@ -155,7 +155,7 @@ All code was written during the 17–18 Oct 2026 hacking window. Standards: NIST
 | C | Legacy service + attacker simulations | Diya |
 | D | AI downgrade/anomaly detector + dashboard | Rena |
 | E | Pitch, video, submission | Everyone |
-| F | Animation, parts of presentation, Demo production | Calvin |
+| F | Animation, Dashboard, Demo production | Calvin |
 
 
 ## Flowcharts
