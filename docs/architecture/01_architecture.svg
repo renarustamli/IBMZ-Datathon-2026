@@ -1,0 +1,123 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 720" font-family="system-ui,-apple-system,Segoe UI,Roboto,sans-serif">
+  <defs>
+    <marker id="arr" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto">
+      <path d="M0,0 L8,3 L0,6 Z" fill="#1f2933"/>
+    </marker>
+    <marker id="arrB" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto">
+      <path d="M0,0 L8,3 L0,6 Z" fill="#2563eb"/>
+    </marker>
+    <marker id="arrR" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto">
+      <path d="M0,0 L8,3 L0,6 Z" fill="#b91c1c"/>
+    </marker>
+  </defs>
+  <rect x="0" y="0" width="1080" height="720" fill="#ffffff"/>
+  <text x="540" y="36" text-anchor="middle" font-size="22" font-weight="700" fill="#0f172a">Quantum-Safe Gateway — System Architecture</text>
+  <text x="540" y="58" text-anchor="middle" font-size="13" fill="#64748b">[Entities_IBM Z Datathon 2026] · Theme 2: AI Secured · runs natively on IBM LinuxONE (s390x)</text>
+
+  <!-- plane labels -->
+  <line x1="40" y1="300" x2="1040" y2="300" stroke="#e2e8f0" stroke-width="1" stroke-dasharray="4 4"/>
+  <text x="48" y="92" font-size="12" font-weight="700" fill="#94a3b8" letter-spacing="1">DATA PATH</text>
+  <text x="48" y="330" font-size="12" font-weight="700" fill="#94a3b8" letter-spacing="1">SECURITY MONITORING</text>
+
+  <!-- Client -->
+  <rect x="40" y="110" width="200" height="110" rx="10" fill="#f1f5f9" stroke="#1f2933" stroke-width="1.5"/>
+  <text x="140" y="150" text-anchor="middle" font-size="16" font-weight="700" fill="#0f172a">Client</text>
+  <text x="140" y="172" text-anchor="middle" font-size="12" fill="#334155">hybrid PQ-TLS</text>
+  <text x="140" y="190" text-anchor="middle" font-size="12" fill="#334155">testclient / -local tunnel</text>
+  <text x="140" y="208" text-anchor="middle" font-size="12" fill="#334155">client_id via SNI</text>
+
+  <!-- Gateway -->
+  <rect x="430" y="92" width="240" height="160" rx="12" fill="#eff6ff" stroke="#2563eb" stroke-width="2.5"/>
+  <text x="550" y="126" text-anchor="middle" font-size="17" font-weight="700" fill="#1e3a8a">Quantum-Safe Gateway</text>
+  <text x="550" y="148" text-anchor="middle" font-size="12" fill="#1e40af">reverse proxy · Go 1.27 · s390x</text>
+  <text x="550" y="170" text-anchor="middle" font-size="12" fill="#1e40af">terminates post-quantum TLS 1.3</text>
+  <text x="550" y="192" text-anchor="middle" font-size="12" fill="#1e40af">mode: strict  |  legacy</text>
+  <text x="550" y="214" text-anchor="middle" font-size="12" fill="#1e40af">writes a note per connection</text>
+  <text x="550" y="236" text-anchor="middle" font-size="12" fill="#1e40af">ML-DSA-65 server certificate</text>
+
+  <!-- Legacy -->
+  <rect x="860" y="110" width="180" height="110" rx="10" fill="#f1f5f9" stroke="#1f2933" stroke-width="1.5"/>
+  <text x="950" y="150" text-anchor="middle" font-size="16" font-weight="700" fill="#0f172a">Legacy service</text>
+  <text x="950" y="172" text-anchor="middle" font-size="12" fill="#334155">weak toy-RSA server</text>
+  <text x="950" y="190" text-anchor="middle" font-size="12" fill="#334155">NOT modified</text>
+  <text x="950" y="208" text-anchor="middle" font-size="12" fill="#334155">127.0.0.1:9000</text>
+
+  <!-- client -> gateway -->
+  <line x1="240" y1="150" x2="426" y2="150" stroke="#2563eb" stroke-width="2.5" marker-end="url(#arrB)"/>
+  <text x="333" y="138" text-anchor="middle" font-size="11.5" font-weight="600" fill="#1e40af">X25519 + ML-KEM-768</text>
+  <text x="333" y="176" text-anchor="middle" font-size="11" fill="#1e40af">key exchange (FIPS 203)</text>
+
+  <!-- gateway -> legacy -->
+  <line x1="670" y1="165" x2="856" y2="165" stroke="#1f2933" stroke-width="2" marker-end="url(#arr)"/>
+  <text x="763" y="153" text-anchor="middle" font-size="11.5" fill="#334155">decrypted bytes</text>
+  <text x="763" y="191" text-anchor="middle" font-size="11" fill="#64748b">plaintext (loopback)</text>
+
+  <!-- Connection log -->
+  <rect x="440" y="340" width="220" height="86" rx="10" fill="#f8fafc" stroke="#1f2933" stroke-width="1.5"/>
+  <text x="550" y="368" text-anchor="middle" font-size="15" font-weight="700" fill="#0f172a">Connection log</text>
+  <text x="550" y="388" text-anchor="middle" font-size="11.5" fill="#334155">logs/connections.jsonl</text>
+  <text x="550" y="406" text-anchor="middle" font-size="10.5" fill="#64748b">time · client_id · keys_offered ·</text>
+  <text x="550" y="420" text-anchor="middle" font-size="10.5" fill="#64748b">key_chosen · strength (FROZEN)</text>
+
+  <!-- gateway -> log -->
+  <line x1="550" y1="252" x2="550" y2="336" stroke="#1f2933" stroke-width="2" marker-end="url(#arr)"/>
+  <text x="560" y="300" font-size="11" fill="#334155">append note / connection</text>
+
+  <!-- Crypto B -->
+  <rect x="60" y="360" width="260" height="120" rx="10" fill="#f1f5f9" stroke="#1f2933" stroke-width="1.5"/>
+  <text x="190" y="386" text-anchor="middle" font-size="15" font-weight="700" fill="#0f172a">Crypto layer (B)</text>
+  <text x="190" y="408" text-anchor="middle" font-size="11.5" fill="#334155">lock / unlock: AES-256-GCM</text>
+  <text x="190" y="426" text-anchor="middle" font-size="11.5" fill="#334155">keys wrapped by ML-KEM-768</text>
+  <text x="190" y="444" text-anchor="middle" font-size="11.5" fill="#334155">sign / verify: ML-DSA-65</text>
+  <text x="190" y="462" text-anchor="middle" font-size="11.5" fill="#334155">seals every log line → .seal</text>
+
+  <!-- seal file -->
+  <rect x="100" y="512" width="180" height="46" rx="8" fill="#ecfdf5" stroke="#15803d" stroke-width="1.5"/>
+  <text x="190" y="532" text-anchor="middle" font-size="12.5" font-weight="700" fill="#166534">.seal</text>
+  <text x="190" y="549" text-anchor="middle" font-size="10.5" fill="#166534">tamper-evident ML-DSA chain</text>
+
+  <!-- log -> B -->
+  <line x1="440" y1="396" x2="324" y2="410" stroke="#1f2933" stroke-width="1.8" marker-end="url(#arr)"/>
+  <text x="378" y="392" text-anchor="middle" font-size="10.5" fill="#334155">reads lines</text>
+  <!-- B -> seal -->
+  <line x1="190" y1="480" x2="190" y2="508" stroke="#15803d" stroke-width="1.8" marker-end="url(#arr)"/>
+
+  <!-- Detector D -->
+  <rect x="760" y="360" width="280" height="120" rx="10" fill="#f1f5f9" stroke="#1f2933" stroke-width="1.5"/>
+  <text x="900" y="386" text-anchor="middle" font-size="15" font-weight="700" fill="#0f172a">AI Detector (D)</text>
+  <text x="900" y="408" text-anchor="middle" font-size="11.5" fill="#334155">Layer 1 rule: PQC→classical = downgrade</text>
+  <text x="900" y="426" text-anchor="middle" font-size="11.5" fill="#334155">Layer 2 model: kNN novelty</text>
+  <text x="900" y="444" text-anchor="middle" font-size="11.5" fill="#334155">scikit-learn, trained on normal traffic</text>
+  <text x="900" y="462" text-anchor="middle" font-size="11.5" fill="#334155">checks .seal for log tampering</text>
+
+  <!-- log -> D -->
+  <line x1="660" y1="390" x2="756" y2="400" stroke="#1f2933" stroke-width="1.8" marker-end="url(#arr)"/>
+  <text x="708" y="382" text-anchor="middle" font-size="10.5" fill="#334155">reads notes</text>
+
+  <!-- B -> D integrity (dashed under log) -->
+  <path d="M320 462 C 520 540, 600 540, 790 480" fill="none" stroke="#15803d" stroke-width="1.6" stroke-dasharray="5 4" marker-end="url(#arr)"/>
+  <text x="555" y="548" text-anchor="middle" font-size="10.5" fill="#166534">verify_log() — log-integrity proof</text>
+
+  <!-- Dashboard -->
+  <rect x="760" y="520" width="280" height="74" rx="10" fill="#f8fafc" stroke="#1f2933" stroke-width="1.5"/>
+  <text x="900" y="548" text-anchor="middle" font-size="15" font-weight="700" fill="#0f172a">Live dashboard</text>
+  <rect x="784" y="560" width="70" height="22" rx="5" fill="#dcfce7" stroke="#15803d"/>
+  <text x="819" y="575" text-anchor="middle" font-size="11" font-weight="700" fill="#166534">GREEN safe</text>
+  <rect x="946" y="560" width="70" height="22" rx="5" fill="#fee2e2" stroke="#b91c1c"/>
+  <text x="981" y="575" text-anchor="middle" font-size="11" font-weight="700" fill="#991b1b">RED attack</text>
+  <!-- D -> dashboard -->
+  <line x1="900" y1="480" x2="900" y2="516" stroke="#1f2933" stroke-width="2" marker-end="url(#arr)"/>
+
+  <!-- Attacker -->
+  <rect x="60" y="600" width="360" height="86" rx="10" fill="#fef2f2" stroke="#b91c1c" stroke-width="1.8"/>
+  <text x="240" y="628" text-anchor="middle" font-size="15" font-weight="700" fill="#991b1b">Attacker (C)</text>
+  <text x="240" y="648" text-anchor="middle" font-size="11.5" fill="#991b1b">harvest-now-decrypt-later · factors toy RSA</text>
+  <text x="240" y="666" text-anchor="middle" font-size="11.5" fill="#991b1b">forced-downgrade (strip PQC)  ·  localhost only</text>
+
+  <!-- attacker -> gateway -->
+  <path d="M300 600 C 380 440, 470 360, 520 254" fill="none" stroke="#b91c1c" stroke-width="1.8" stroke-dasharray="5 4" marker-end="url(#arrR)"/>
+  <text x="430" y="430" text-anchor="middle" font-size="10.5" font-weight="600" fill="#b91c1c">downgrade attempt</text>
+  <!-- attacker -> legacy -->
+  <path d="M420 636 C 760 636, 950 420, 950 224" fill="none" stroke="#b91c1c" stroke-width="1.6" stroke-dasharray="2 4" marker-end="url(#arrR)"/>
+  <text x="780" y="470" text-anchor="middle" font-size="10.5" fill="#b91c1c">record &amp; factor (HNDL)</text>
+</svg>

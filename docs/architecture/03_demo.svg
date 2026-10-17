@@ -1,0 +1,87 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 700" font-family="system-ui,-apple-system,Segoe UI,Roboto,sans-serif">
+  <defs>
+    <marker id="d" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6 Z" fill="#1f2933"/></marker>
+    <marker id="dr" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6 Z" fill="#b91c1c"/></marker>
+    <marker id="dg" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6 Z" fill="#15803d"/></marker>
+  </defs>
+  <rect x="0" y="0" width="1080" height="700" fill="#ffffff"/>
+  <text x="540" y="34" text-anchor="middle" font-size="21" font-weight="700" fill="#0f172a">Demo &amp; Threat Model — Three Scenes</text>
+  <text x="540" y="55" text-anchor="middle" font-size="12.5" fill="#64748b">the same attacker beats the legacy service, fails against the gateway, then trips the AI detector</text>
+
+  <!-- SCENE 1 -->
+  <rect x="30" y="78" width="330" height="560" rx="12" fill="#fef2f2" stroke="#b91c1c" stroke-width="2"/>
+  <text x="195" y="108" text-anchor="middle" font-size="16" font-weight="700" fill="#991b1b">Scene 1 — Legacy is broken</text>
+  <rect x="60" y="126" width="270" height="52" rx="8" fill="#ffffff" stroke="#1f2933"/>
+  <text x="195" y="148" text-anchor="middle" font-size="12.5" fill="#0f172a">Client ⇄ legacy service directly</text>
+  <text x="195" y="166" text-anchor="middle" font-size="11" fill="#64748b">toy 64-bit RSA + AES-256-GCM</text>
+  <line x1="195" y1="178" x2="195" y2="206" stroke="#b91c1c" stroke-width="2" marker-end="url(#dr)"/>
+  <rect x="60" y="208" width="270" height="52" rx="8" fill="#ffffff" stroke="#1f2933"/>
+  <text x="195" y="230" text-anchor="middle" font-size="12.5" fill="#0f172a">Attacker records the traffic</text>
+  <text x="195" y="248" text-anchor="middle" font-size="11" fill="#64748b">captures the RSA handshake</text>
+  <line x1="195" y1="260" x2="195" y2="288" stroke="#b91c1c" stroke-width="2" marker-end="url(#dr)"/>
+  <rect x="60" y="290" width="270" height="52" rx="8" fill="#ffffff" stroke="#1f2933"/>
+  <text x="195" y="312" text-anchor="middle" font-size="12.5" fill="#0f172a">Factor the key (Shor simulation)</text>
+  <text x="195" y="330" text-anchor="middle" font-size="11" fill="#64748b">sympy factorint — &lt; 1 second</text>
+  <line x1="195" y1="342" x2="195" y2="370" stroke="#b91c1c" stroke-width="2" marker-end="url(#dr)"/>
+  <rect x="60" y="372" width="270" height="70" rx="8" fill="#fee2e2" stroke="#b91c1c" stroke-width="2"/>
+  <text x="195" y="400" text-anchor="middle" font-size="14" font-weight="700" fill="#991b1b">DATA EXPOSED</text>
+  <text x="195" y="420" text-anchor="middle" font-size="11" fill="#991b1b">bank records read in clear</text>
+  <text x="195" y="436" text-anchor="middle" font-size="11" fill="#991b1b">tested: 3 / 3 sessions cracked</text>
+  <text x="195" y="476" text-anchor="middle" font-size="11.5" font-style="italic" fill="#7f1d1d">"Harvest now, decrypt later" works</text>
+  <text x="195" y="494" text-anchor="middle" font-size="11.5" font-style="italic" fill="#7f1d1d">because RSA/ECC fall to Shor.</text>
+  <text x="195" y="600" text-anchor="middle" font-size="11" fill="#991b1b">⚠ 64-bit key = scaled-down demo,</text>
+  <text x="195" y="616" text-anchor="middle" font-size="11" fill="#991b1b">not a break of real RSA-2048</text>
+
+  <!-- SCENE 2 -->
+  <rect x="375" y="78" width="330" height="560" rx="12" fill="#ecfdf5" stroke="#15803d" stroke-width="2"/>
+  <text x="540" y="108" text-anchor="middle" font-size="16" font-weight="700" fill="#166534">Scene 2 — Gateway defends</text>
+  <rect x="405" y="126" width="270" height="52" rx="8" fill="#ffffff" stroke="#1f2933"/>
+  <text x="540" y="148" text-anchor="middle" font-size="12.5" fill="#0f172a">Client → gateway → legacy</text>
+  <text x="540" y="166" text-anchor="middle" font-size="11" fill="#64748b">X25519 + ML-KEM-768 on the wire</text>
+  <line x1="540" y1="178" x2="540" y2="206" stroke="#15803d" stroke-width="2" marker-end="url(#dg)"/>
+  <rect x="405" y="208" width="270" height="52" rx="8" fill="#ffffff" stroke="#1f2933"/>
+  <text x="540" y="230" text-anchor="middle" font-size="12.5" fill="#0f172a">Attacker records client⇄gateway</text>
+  <text x="540" y="248" text-anchor="middle" font-size="11" fill="#64748b">-record saves the encrypted bytes</text>
+  <line x1="540" y1="260" x2="540" y2="288" stroke="#15803d" stroke-width="2" marker-end="url(#dg)"/>
+  <rect x="405" y="290" width="270" height="52" rx="8" fill="#ffffff" stroke="#1f2933"/>
+  <text x="540" y="312" text-anchor="middle" font-size="12.5" fill="#0f172a">Runs the same factoring attack</text>
+  <text x="540" y="330" text-anchor="middle" font-size="11" fill="#64748b">looks for an RSA key to factor</text>
+  <line x1="540" y1="342" x2="540" y2="370" stroke="#15803d" stroke-width="2" marker-end="url(#dg)"/>
+  <rect x="405" y="372" width="270" height="70" rx="8" fill="#dcfce7" stroke="#15803d" stroke-width="2"/>
+  <text x="540" y="400" text-anchor="middle" font-size="14" font-weight="700" fill="#166534">ATTACK FAILS</text>
+  <text x="540" y="420" text-anchor="middle" font-size="11" fill="#166534">"no RSA public key to factor"</text>
+  <text x="540" y="436" text-anchor="middle" font-size="11" fill="#166534">tested: 0 / 3 sessions cracked</text>
+  <text x="540" y="476" text-anchor="middle" font-size="11.5" font-style="italic" fill="#14532d">ML-KEM leaves nothing on the wire</text>
+  <text x="540" y="494" text-anchor="middle" font-size="11.5" font-style="italic" fill="#14532d">that a quantum computer could break.</text>
+  <text x="540" y="600" text-anchor="middle" font-size="11" fill="#166534">✓ same recorded bytes as Scene 1,</text>
+  <text x="540" y="616" text-anchor="middle" font-size="11" fill="#166534">now unreadable</text>
+
+  <!-- SCENE 3 -->
+  <rect x="720" y="78" width="330" height="560" rx="12" fill="#fef2f2" stroke="#b91c1c" stroke-width="2"/>
+  <text x="885" y="108" text-anchor="middle" font-size="16" font-weight="700" fill="#991b1b">Scene 3 — Detector catches it</text>
+  <rect x="750" y="126" width="270" height="52" rx="8" fill="#ffffff" stroke="#1f2933"/>
+  <text x="885" y="148" text-anchor="middle" font-size="12.5" fill="#0f172a">Attacker forces a downgrade</text>
+  <text x="885" y="166" text-anchor="middle" font-size="11" fill="#64748b">same client, now classical-only</text>
+  <line x1="885" y1="178" x2="885" y2="206" stroke="#b91c1c" stroke-width="2" marker-end="url(#dr)"/>
+  <rect x="750" y="208" width="270" height="52" rx="8" fill="#ffffff" stroke="#1f2933"/>
+  <text x="885" y="230" text-anchor="middle" font-size="12.5" fill="#0f172a">Gateway logs strong → weak</text>
+  <text x="885" y="248" text-anchor="middle" font-size="11" fill="#64748b">key_chosen="rejected" (strict)</text>
+  <line x1="885" y1="260" x2="885" y2="288" stroke="#b91c1c" stroke-width="2" marker-end="url(#dr)"/>
+  <rect x="750" y="290" width="270" height="52" rx="8" fill="#ffffff" stroke="#1f2933"/>
+  <text x="885" y="312" text-anchor="middle" font-size="12.5" fill="#0f172a">Detector rule fires</text>
+  <text x="885" y="330" text-anchor="middle" font-size="11" fill="#64748b">PQC client dropped to classical</text>
+  <line x1="885" y1="342" x2="885" y2="370" stroke="#b91c1c" stroke-width="2" marker-end="url(#dr)"/>
+  <rect x="750" y="372" width="270" height="70" rx="8" fill="#fee2e2" stroke="#b91c1c" stroke-width="2"/>
+  <text x="885" y="400" text-anchor="middle" font-size="14" font-weight="700" fill="#991b1b">DASHBOARD TURNS RED</text>
+  <text x="885" y="420" text-anchor="middle" font-size="11" fill="#991b1b">downgrade alert on that client</text>
+  <text x="885" y="436" text-anchor="middle" font-size="11" fill="#991b1b">tested: rule fired, 0.4% false pos.</text>
+  <rect x="750" y="456" width="270" height="56" rx="8" fill="#ecfdf5" stroke="#15803d" stroke-width="1.8"/>
+  <text x="885" y="479" text-anchor="middle" font-size="12" font-weight="700" fill="#166534">+ log integrity: OK</text>
+  <text x="885" y="497" text-anchor="middle" font-size="10.5" fill="#166534">ML-DSA seal proves log not altered</text>
+  <text x="885" y="600" text-anchor="middle" font-size="11" fill="#991b1b">The attack is recorded AND</text>
+  <text x="885" y="616" text-anchor="middle" font-size="11" fill="#991b1b">the record itself is tamper-proof</text>
+
+  <!-- scene links -->
+  <line x1="360" y1="300" x2="373" y2="300" stroke="#94a3b8" stroke-width="1.5"/>
+  <line x1="705" y1="300" x2="718" y2="300" stroke="#94a3b8" stroke-width="1.5"/>
+</svg>
