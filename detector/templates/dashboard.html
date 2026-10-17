@@ -39,6 +39,8 @@
   th { color: var(--muted); font-weight: 600; font-size: 12px; position: sticky; top: 0; background: var(--panel); }
   td.reason { white-space: normal; min-width: 320px; }
   td.reason small { display: block; color: var(--muted); font-size: 11px; margin-top: 2px; }
+  .ai { display: inline-block; font-size: 10px; font-weight: 700; letter-spacing: .03em; color: var(--muted);
+        border: 1px solid var(--line); border-radius: 4px; padding: 0 4px; margin-right: 4px; }
   tr.rule  td { background: var(--bad-bg); }
   tr.model td { background: var(--warn-bg); }
   tr.watch td { background: var(--warn-bg); opacity: .85; }
@@ -104,7 +106,8 @@ async function refresh() {
     document.getElementById("status").textContent = !total ? "Waiting for traffic…"
       : s.under_attack ? `ATTACK DETECTED: ${latest.by === "rule" ? "PQC downgrade" : "anomaly"} from ${latest.client_id}`
       : "SECURE: all recent handshakes look normal";
-    document.getElementById("updated").textContent = "updated " + new Date().toLocaleTimeString();
+    document.getElementById("updated").textContent = "updated " + new Date().toLocaleTimeString() +
+      (s.ai_status === "ready" ? ` · GenAI: ${s.ai_model}` : ` · GenAI off (${s.ai_status})`);
 
     if (!s.events.length) return;
     document.getElementById("rows").innerHTML = s.events.map(e => `
@@ -116,7 +119,7 @@ async function refresh() {
         <td class="mono">${(e.key_groups_offered || []).map(pq).join(", ")}</td>
         <td class="mono">${pq(e.key_group_chosen)}</td>
         <td>${e.by ? `<span class="tag ${e.by}">${TAGS[e.by]}</span>` : `<span class="tag ok">OK</span>`}${e.blocked ? `<span class="tag blocked">BLOCKED</span>` : ""}</td>
-        <td class="reason">${e.by ? `${esc(e.plain)}<small>${esc(e.reason)}</small>` : ""}</td>
+        <td class="reason">${!e.by ? "" : e.ai ? `<span class="ai" title="written by a local LLM (${esc(s.ai_model)}) from the facts below">AI SUMMARY</span>${esc(e.ai)}<small>${esc(e.plain)}</small><small>${esc(e.reason)}</small>` : `${esc(e.plain)}<small>${esc(e.reason)}</small>`}</td>
       </tr>`).join("");
   } catch (err) {
     document.getElementById("updated").textContent = "dashboard server unreachable";

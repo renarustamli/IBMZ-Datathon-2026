@@ -3,7 +3,9 @@
   python dashboard.py                                   -> http://localhost:5000
   LOG_FILE=../logs/connections.jsonl python dashboard.py   (gateway's real log — the demo)
 
-The model is trained on logs/normal_traffic.jsonl at startup (run generate_traffic.py once).
+The model is trained at startup on logs/normal_traffic.jsonl (run generate_traffic.py once) plus
+C's practice_data/normal.jsonl. TRAIN_FILE takes a comma-separated list to change that.
+GenAI alert summaries need a local Ollama model (see explain.py); without it, template text is shown.
 For a demo without the gateway: `python generate_traffic.py --live` in another terminal.
 """
 import json
@@ -15,12 +17,15 @@ from collections import Counter, deque
 from flask import Flask, jsonify, render_template
 
 from detector import Detector, LOGS
-from explain import explain
+from explain import explain, AI
 import seal_check
 from schema import read_notes, normalize
 
 LOG_FILE = os.environ.get("LOG_FILE", os.path.join(LOGS, "connections.jsonl"))
-TRAIN_FILE = os.environ.get("TRAIN_FILE", os.path.join(LOGS, "normal_traffic.jsonl"))
+TRAIN_FILES = os.environ.get("TRAIN_FILE", ",".join([
+    os.path.join(LOGS, "normal_traffic.jsonl"),
+    os.path.join(LOGS, "..", "practice_data", "normal.jsonl"),
+])).split(",")
 RED_WINDOW = 20  # banner stays red while any of the last N connections alerted
 SEAL_EVERY = 10  # seconds between log-integrity checks (pure-Python ML-DSA verify is slow)
 
@@ -29,7 +34,7 @@ lock = threading.Lock()
 recent = deque(maxlen=200)
 counts = Counter()
 seal = {"status": "unavailable", "lines": 0, "detail": "checking…"}
-detector = Detector().train(read_notes(TRAIN_FILE))
+detector = Detector().train([n for f in TRAIN_FILES if os.path.exists(f) for n in read_notes(f)])
 detector.reset()  # live clients are judged on their own history, not the training clients'
 
 
@@ -91,8 +96,11 @@ def state():
         c = dict(counts)
         s = dict(seal)
     under_attack = any(e["alert"] for e in events[:RED_WINDOW])
+    for e in events:
+        if e["by"]:
+            e["ai"] = AI.get(e)
     return jsonify(under_attack=under_attack, counts=c, events=events[:100],
-                   threshold=detector.threshold, seal=s)
+                   threshold=detector.threshold, seal=s, ai_status=AI.status, ai_model=AI.model)
 
 
 if __name__ == "__main__":

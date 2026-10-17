@@ -43,7 +43,7 @@ EXPLAIN = {
     "offers_pqc": "no post-quantum key group offered",
     "chosen_pqc": "classical key exchange negotiated",
     "pqc_offered_not_chosen": "client offered PQC but handshake settled on classical",
-    "cipher_strength": "weak cipher suite",
+    "cipher_strength": "weaker cipher than normal traffic",
     "strength_drop": "cipher weaker than this client normally negotiates",
     "new_group_set": "key-group set never seen from this client",
     "conn_per_min": "connection burst (per minute)",
