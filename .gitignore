@@ -7,3 +7,8 @@ __pycache__/
 test_bad/
 captures/
 legacy_server/connection_notes.jsonl
+*.pem
+gateway/gateway
+gateway/testclient/testclient
+*.log
+run/
