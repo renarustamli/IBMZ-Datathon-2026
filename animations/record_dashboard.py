@@ -1,6 +1,8 @@
 """Record the real dashboard reacting to a scripted attack, for the end of the pitch.
 
-  .venv-anim/bin/python animations/record_dashboard.py      -> animations/footage/dashboard.mp4
+  .venv-anim/bin/python animations/record_dashboard.py            -> animations/footage/dashboard.mp4
+  .venv-anim/bin/python animations/record_dashboard.py --stills   -> docs/images/dashboard-*.png (same
+                                                                     scenario, screenshots without captions)
 
 Starts its own private dashboard (port 5080) with its own log, keys and sealer, so it never
 touches a demo that is already running. Traffic is the detector's simulated feed; the
@@ -22,6 +24,8 @@ from playwright.sync_api import sync_playwright
 ROOT = Path(__file__).resolve().parent.parent
 PY = str(ROOT / ".venv" / "bin" / "python")          # project venv: dashboard, feed, crypto
 OUT = ROOT / "animations" / "footage" / "dashboard.mp4"
+STILLS_DIR = ROOT / "docs" / "images"
+STILLS = "--stills" in sys.argv[1:]
 PORT = 5080
 FAST = 6                                               # fast-forward factor while waiting on the page
 VIEW = {"width": 1440, "height": 810}                  # x 4/3 device scale -> 1920x1080 frames
@@ -151,25 +155,42 @@ def main():
             red = "document.getElementById('banner').classList.contains('bad')"
             tampered = "document.getElementById('seal').textContent.includes('TAMPERED')"
 
+            def still(name, selector):
+                """Caption-free PNG of the viewport (selector None) or of one element."""
+                caption(None)
+                time.sleep(0.4)
+                STILLS_DIR.mkdir(parents=True, exist_ok=True)
+                path = STILLS_DIR / f"{name}.png"
+                (page.locator(selector) if selector else page).screenshot(path=str(path))
+                print(f"    saved {path.relative_to(ROOT)}")
+
+            # (caption, action, seconds to hold, wait-until condition, still to save in --stills mode)
             steps = [
-                ("Live dashboard · simulated bank traffic through the gateway", None, 3, None),
-                ("Simulated attack: a client's post-quantum options are stripped", strip, 3, red),
-                ("The risk table puts the downgraded client first", lambda: scroll_to("#clients", "center"), 3, None),
+                ("Live dashboard · simulated bank traffic through the gateway", None, 3, None, None),
+                ("Simulated attack: a client's post-quantum options are stripped", strip, 3, red,
+                 ("dashboard-attack", None)),
+                ("The risk table puts the downgraded client first", lambda: scroll_to("#clients", "center"), 3, None,
+                 ("dashboard-clients", "section.card:has(#clients)")),
                 ("Simulated attack: subtler anomalies that no fixed rule catches",
-                 lambda: (scroll_to("#c-scores", "center"), inject("forced_classical"), inject("cipher_downgrade")), 4, None),
+                 lambda: (scroll_to("#c-scores", "center"), inject("forced_classical"), inject("cipher_downgrade")), 4, None,
+                 ("dashboard-anomalies", "section.grid >> nth=1")),
                 ("The attacker edits the audit log to cover their tracks",
-                 lambda: (scroll_to("main", "start"), tamper()), 1.5, tampered),
-                ("ML-DSA seals catch the edit", None, 2.5, None),
+                 lambda: (scroll_to("main", "start"), tamper()), 1.5, tampered, None),
+                ("ML-DSA seals catch the edit", None, 2.5, None, ("dashboard-tampered", "section.tiles")),
             ]
-            for i, (text, action, seconds, until) in enumerate(steps, 1):
+            for i, (text, action, seconds, until, shot) in enumerate(steps, 1):
                 print(f"  step {i}/{len(steps)}: {text}")
                 caption(text)
                 if action:
                     action()
                 hold(seconds, until, text=text)
+                if STILLS and shot:
+                    still(*shot)
             caption(None)
             hold(0.5)
             browser.close()
+        if STILLS:
+            return
 
         # one frame per screenshot, shown for as long as it really lasted (÷ FAST while waiting)
         concat = work / "frames.txt"

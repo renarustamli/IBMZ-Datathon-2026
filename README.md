@@ -45,6 +45,28 @@ A simulated **harvest-now-decrypt-later** attacker:
 
 > Note: the demo uses an intentionally small key to illustrate the attack in seconds. This is a scaled-down illustration, not a break of production-grade RSA.
 
+## Dashboard
+
+The detector's live dashboard, during a scripted attack. The dashboard, detector, AI model and ML-DSA log seals are the real code; the bank traffic and attacks are simulated by `demo_tools/handshake_feed.py`.
+
+**A downgrade attack is caught.** Someone strips the post-quantum options from a client's handshake; the banner turns red with a plain-English explanation. The tiles show how much traffic is quantum-safe, how much could be harvested today, and how many clients need action.
+
+![Dashboard under a PQC downgrade attack](docs/images/dashboard-attack.png)
+
+**Who to investigate, and who to upgrade.** Clients are sorted by risk: the downgraded client first, then legacy clients that still need a post-quantum upgrade.
+
+![Clients sorted by risk](docs/images/dashboard-clients.png)
+
+**The AI model catches what the rule can't.** Each dot is a connection's distance from normal traffic; above the line, the kNN model raises an alert, for example a client that offered post-quantum but landed on classical, or a cipher weaker than it normally uses.
+
+![AI anomaly scores and alerts by type](docs/images/dashboard-anomalies.png)
+
+**Tampering with the audit log is detected.** Every log line is sealed with an ML-DSA-65 signature chain; editing a line to hide the attack flips the integrity tile to TAMPERED, naming the line.
+
+![Log integrity tile showing TAMPERED](docs/images/dashboard-tampered.png)
+
+Run it yourself with `./demo.sh` (step 4 opens the dashboard). Regenerate these screenshots with `.venv-anim/bin/python animations/record_dashboard.py --stills`.
+
 ## Architecture
 
 <!-- Add your flowchart / diagram here (optional submission, worth including) -->
