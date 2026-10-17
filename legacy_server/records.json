@@ -1,0 +1,242 @@
+[
+  {
+    "id": 1,
+    "name": "Sofia Shah",
+    "account_number": "46913810",
+    "balance": 12320.1
+  },
+  {
+    "id": 2,
+    "name": "Noah Evans",
+    "account_number": "23756669",
+    "balance": 33867.3
+  },
+  {
+    "id": 3,
+    "name": "Chloe Patel",
+    "account_number": "89254563",
+    "balance": 21153.9
+  },
+  {
+    "id": 4,
+    "name": "Aarav Patel",
+    "account_number": "39345092",
+    "balance": 11709.78
+  },
+  {
+    "id": 5,
+    "name": "Anaya Shah",
+    "account_number": "85329037",
+    "balance": 10022.0
+  },
+  {
+    "id": 6,
+    "name": "Chloe Brown",
+    "account_number": "39587039",
+    "balance": 22515.53
+  },
+  {
+    "id": 7,
+    "name": "Oliver Clarke",
+    "account_number": "10872248",
+    "balance": 37964.49
+  },
+  {
+    "id": 8,
+    "name": "Priya Evans",
+    "account_number": "66722344",
+    "balance": 17078.5
+  },
+  {
+    "id": 9,
+    "name": "Noah Jones",
+    "account_number": "55176955",
+    "balance": 5200.29
+  },
+  {
+    "id": 10,
+    "name": "Kabir Patel",
+    "account_number": "58181396",
+    "balance": 42389.97
+  },
+  {
+    "id": 11,
+    "name": "Anaya Khan",
+    "account_number": "15831819",
+    "balance": 36513.62
+  },
+  {
+    "id": 12,
+    "name": "Chloe Patel",
+    "account_number": "60806024",
+    "balance": 4032.13
+  },
+  {
+    "id": 13,
+    "name": "Isha Joshi",
+    "account_number": "94374605",
+    "balance": 30964.14
+  },
+  {
+    "id": 14,
+    "name": "Amelia Davies",
+    "account_number": "35808537",
+    "balance": 35258.13
+  },
+  {
+    "id": 15,
+    "name": "Maya Singh",
+    "account_number": "40587988",
+    "balance": 38676.11
+  },
+  {
+    "id": 16,
+    "name": "Liam Joshi",
+    "account_number": "41244663",
+    "balance": 43337.53
+  },
+  {
+    "id": 17,
+    "name": "Kabir Khan",
+    "account_number": "70855700",
+    "balance": 31820.65
+  },
+  {
+    "id": 18,
+    "name": "Amelia Smith",
+    "account_number": "59684848",
+    "balance": 17828.01
+  },
+  {
+    "id": 19,
+    "name": "Oliver Evans",
+    "account_number": "96977837",
+    "balance": 3662.99
+  },
+  {
+    "id": 20,
+    "name": "Priya Wilson",
+    "account_number": "42857966",
+    "balance": 8253.78
+  },
+  {
+    "id": 21,
+    "name": "Kabir Khan",
+    "account_number": "95899313",
+    "balance": 34439.28
+  },
+  {
+    "id": 22,
+    "name": "Zara Singh",
+    "account_number": "53524491",
+    "balance": 42158.31
+  },
+  {
+    "id": 23,
+    "name": "Maya Jones",
+    "account_number": "14308421",
+    "balance": 40271.79
+  },
+  {
+    "id": 24,
+    "name": "Kabir Khan",
+    "account_number": "18883684",
+    "balance": 10628.04
+  },
+  {
+    "id": 25,
+    "name": "Harry Walker",
+    "account_number": "52235350",
+    "balance": 10710.06
+  },
+  {
+    "id": 26,
+    "name": "Nina Brown",
+    "account_number": "96282117",
+    "balance": 22996.71
+  },
+  {
+    "id": 27,
+    "name": "Oliver Smith",
+    "account_number": "43101783",
+    "balance": 37274.95
+  },
+  {
+    "id": 28,
+    "name": "Chloe Khan",
+    "account_number": "88461803",
+    "balance": 21478.85
+  },
+  {
+    "id": 29,
+    "name": "Harry Brown",
+    "account_number": "58586340",
+    "balance": 11044.11
+  },
+  {
+    "id": 30,
+    "name": "Noah Wilson",
+    "account_number": "76238574",
+    "balance": 4636.38
+  },
+  {
+    "id": 31,
+    "name": "Maya Joshi",
+    "account_number": "24716857",
+    "balance": 7726.78
+  },
+  {
+    "id": 32,
+    "name": "Priya Clarke",
+    "account_number": "66661351",
+    "balance": 29860.81
+  },
+  {
+    "id": 33,
+    "name": "Kabir Brown",
+    "account_number": "89978790",
+    "balance": 49806.46
+  },
+  {
+    "id": 34,
+    "name": "Arjun Khan",
+    "account_number": "84252722",
+    "balance": 43052.91
+  },
+  {
+    "id": 35,
+    "name": "Aarav Singh",
+    "account_number": "25374874",
+    "balance": 34117.35
+  },
+  {
+    "id": 36,
+    "name": "Chloe Clarke",
+    "account_number": "45812670",
+    "balance": 38453.08
+  },
+  {
+    "id": 37,
+    "name": "Jack Patel",
+    "account_number": "49392920",
+    "balance": 21794.79
+  },
+  {
+    "id": 38,
+    "name": "Leo Shah",
+    "account_number": "45351479",
+    "balance": 48597.22
+  },
+  {
+    "id": 39,
+    "name": "Priya Wilson",
+    "account_number": "24282218",
+    "balance": 43538.88
+  },
+  {
+    "id": 40,
+    "name": "Isha Joshi",
+    "account_number": "95758349",
+    "balance": 25432.38
+  }
+]
