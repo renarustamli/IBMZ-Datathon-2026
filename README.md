@@ -128,8 +128,17 @@ All code was written during the 17–18 Oct 2026 hacking window. Standards: NIST
 
 | Role | Area | Name |
 |------|------|------|
-| A | Gateway, PQ-TLS, hardware, benchmarks, containerisation | [NAME] |
-| B | Crypto layer (encrypt / decrypt / sign / verify / sealed logs) | [NAME] |
-| C | Legacy service + attacker simulations | [NAME] |
-| D | AI downgrade/anomaly detector + dashboard | Rana |
-| E | Pitch, video, submission | [NAME] |
+| A | Gateway, PQ-TLS, hardware, benchmarks, containerisation | Viral |
+| B | Crypto layer (encrypt / decrypt / sign / verify / sealed logs) | Talen |
+| C | Legacy service + attacker simulations | Diya |
+| D | AI downgrade/anomaly detector + dashboard | Rena |
+| E | Pitch, video, submission | Everyone |
+| F | Animation, parts of presentation, Demo production | Calvin |
+
+
+## Flowcharts
+<img width="2160" height="1440" alt="01_architecture" src="https://github.com/user-attachments/assets/8d99e91e-858e-4c37-b58f-f14124262602" />
+<img width="1800" height="1520" alt="02_handshake" src="https://github.com/user-attachments/assets/3b180776-7ffd-40cd-ba1a-314a9fd6e6ee" />
+<img width="2160" height="1400" alt="03_demo" src="https://github.com/user-attachments/assets/22cd27f8-f809-4408-babd-52be76ffa154" />
+
+
