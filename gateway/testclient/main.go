@@ -155,6 +155,9 @@ func main() {
 	} else {
 		fmt.Println("connected with classical key exchange, curve id:", st.CurveID)
 	}
+	if len(st.PeerCertificates) > 0 {
+		fmt.Println("server certificate signature:", st.PeerCertificates[0].SignatureAlgorithm)
+	}
 	fmt.Fprintf(conn, "GET / HTTP/1.0\r\nHost: localhost\r\n\r\n")
 	b, _ := io.ReadAll(conn)
 	fmt.Println(len(b), "bytes received")

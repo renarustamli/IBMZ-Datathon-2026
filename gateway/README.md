@@ -6,20 +6,35 @@ Each connection attempt adds one line to a connection-note log. D's detector rea
 
 Runs natively on IBM LinuxONE (s390x, Ubuntu 24.04) and is built with Go 1.27.
 
+## What is post-quantum here
+
+Two independent parts of the TLS handshake can each be classical or post-quantum:
+
+| Handshake part | Classical | Post-quantum (this gateway) | Quantum threat it blocks |
+|---|---|---|---|
+| Key exchange | X25519 | **X25519 + ML-KEM-768** (hybrid) | Shor factoring recorded traffic ("harvest now, decrypt later") |
+| Certificate signature | ECDSA P-256 | **ML-DSA-65** (FIPS 204), via `gencert -pq` | Shor forging the server's identity |
+| Session cipher | AES-128-GCM | AES-128-GCM (not configurable, see limitations) | Grover (halves symmetric strength) |
+
+Key exchange and authentication are both post-quantum. The symmetric cipher is chosen by Go and can't be changed (see limitations).
+
 ## Build and run
 
 ```bash
 cd gateway
 go build -o gateway .
 go build -o testclient/testclient ./testclient
+go build -o gencert/gencert ./gencert
 
-# demo certificate (self-signed ECDSA P-256, never committed)
-openssl req -x509 -newkey ec -pkeyopt ec_paramgen_curve:prime256v1 -nodes \
-  -keyout key.pem -out cert.pem -days 7 -subj "/CN=localhost"
+# demo certificate (never committed). Pick one:
+./gencert/gencert -pq        # ML-DSA-65 post-quantum certificate (recommended)
+./gencert/gencert            # classical ECDSA P-256, for comparison
 
-./gateway -mode strict                     # hybrid PQ only
+./gateway -mode strict                     # hybrid PQ key exchange only
 ./gateway -mode legacy                     # also accepts classical X25519 (logged as weak)
 ```
+
+`gencert` uses only the Go standard library (`crypto/mldsa`, `crypto/x509`). `test.sh` builds a post-quantum cert automatically if none exists.
 
 End-to-end test (starts a dummy backend on :9000 and the gateway, then connects one hybrid client and one classical client):
 
@@ -109,17 +124,20 @@ go run ./bench -addr 127.0.0.1:8444 -n 500
 
 ## Honest limitations
 
-- **Certificates are still classical (ECDSA).** Only the key exchange is post-quantum. A quantum attacker could forge a certificate in the future, but cannot decrypt traffic recorded today.
-- **The session cipher is AES-128-GCM** (`TLS_AES_128_GCM_SHA256`). Go's TLS 1.3 chooses the suite and does not let us set it. Grover's algorithm roughly halves symmetric strength, which leaves AES-128 at about 64-bit quantum security in theory. That is still considered impractical to attack, but it is not AES-256.
+- **The session cipher is AES-128-GCM** (`TLS_AES_128_GCM_SHA256`). Go's own docs say "TLS 1.3 ciphersuites are not configurable", so we cannot select AES-256 with the standard library, and rule 5 forbids writing our own crypto. Grover's algorithm roughly halves symmetric strength, which leaves AES-128 at about 64-bit quantum security in theory. That is still considered impractical to attack, but it is not AES-256.
+- **ML-KEM and ML-DSA are young standards.** They are NIST standards (FIPS 203 and 204), but far less battle-tested than RSA/ECC. The hybrid key exchange keeps X25519 alongside ML-KEM precisely so that if ML-KEM is ever broken, the classical half still protects the session. The certificate signature does not have that fallback.
+- **The demo certificate is self-signed.** A real deployment needs a certificate authority that itself issues ML-DSA certificates; the quantum-safe-identity story is only as strong as that chain.
 - **The "quantum attack" in the demo is a simulation.** It factors a deliberately tiny (64-bit) toy RSA key on a normal CPU. No quantum computer is involved, and real RSA-2048 is not broken.
-- **Protection is against known attacks.** We do not claim the gateway is "unbreakable". ML-KEM is a NIST standard (FIPS 203), but it is young, and the hybrid design keeps X25519 in case ML-KEM is ever broken.
+- **Protection is against known attacks.** We do not claim the gateway is "unbreakable".
 - **`other-4587` / `other-4589`** in `keys_offered` are group codes that Go's client offers and our name table does not cover. We have not verified what they are, so we do not label them as post-quantum.
 - **Only the network leg is protected.** Traffic between the gateway and the backend is plaintext on the same host (loopback).
 - **Legacy mode accepts classical key exchange** on purpose, for the downgrade demo and old clients. Use strict mode for real protection.
 
 ## Libraries
 
-Only the Go standard library: `crypto/tls` (TLS 1.3 with hybrid `X25519MLKEM768`), `crypto/mlkem` and `crypto/ecdh` (benchmark key sizes and timings), and `net`, `encoding/json`. We did not write any crypto ourselves.
+Only the Go standard library: `crypto/tls` (TLS 1.3 with hybrid `X25519MLKEM768`), `crypto/mlkem`, `crypto/mldsa` and `crypto/x509` (ML-DSA-65 certificate), `crypto/ecdh` (benchmark key sizes and timings), and `net`, `encoding/json`. We did not write any crypto ourselves.
+
+ML-DSA-65 sizes (from `crypto/mldsa`): public key 1952 bytes, signature 3309 bytes; the self-signed cert PEM is about 7.5 KB, versus roughly 0.5 KB for ECDSA P-256. That is the cost of post-quantum authentication.
 
 ## Scope note
 

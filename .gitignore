@@ -5,3 +5,5 @@ gateway/testclient/testclient
 logs/
 *.out
 gateway/bench/bench
+gateway/gencert/gencert
+gateway/probe/
