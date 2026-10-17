@@ -8,6 +8,9 @@ and the presenter presses → to play the next section.
 
 Benchmark numbers on the LinuxONE section come from gateway/bench/benchmarks.md.
 """
+import json
+from pathlib import Path
+
 from manim import *
 from manim_slides import Slide
 
@@ -134,6 +137,7 @@ class Pitch(Slide):
     def construct(self):
         self.title = None
         self.cap = None
+        self.cues = []
         self.intro()
         self.harvest()
         self.gateway()
@@ -142,10 +146,17 @@ class Pitch(Slide):
         self.tamper()
         self.linuxone()
         self.summary()
+        # sound-effect cue sheet for make_video.py --sfx (times in seconds of animation)
+        (Path(__file__).resolve().parent / "cues.json").write_text(json.dumps(self.cues, indent=1))
 
     # helpers -----------------------------------------------------------
+    def cue(self, sound):
+        """Mark a sound effect to start with the next animation (see make_video.py --sfx)."""
+        self.cues.append([round(self.time, 3), sound])
+
     def set_title(self, s):
         new = T(s, 44).to_edge(UP, buff=0.4)
+        self.cue("whoosh")
         if self.title is None:
             self.play(Write(new), run_time=1)
         else:
@@ -181,8 +192,10 @@ class Pitch(Slide):
         old, new = Lock(OLD, s=2.0), Lock(PQ, s=2.0)
         for lk in (old, new):
             lk.next_to(event, DOWN, buff=0.7)
+        self.cue("whoosh")
         self.play(Write(name), run_time=1.2)
         self.play(FadeIn(sub, shift=UP * 0.2), FadeIn(event), FadeIn(old, scale=0.8), run_time=0.8)
+        self.cue("lock_click")
         self.play(Transform(old, new), run_time=1.0)
         self.pause()
         self.play(FadeOut(VGroup(sub, event, old)), run_time=0.5)
@@ -208,8 +221,10 @@ class Pitch(Slide):
                                          stroke_width=2) for _ in range(3)]).arrange(DOWN, buff=0.05)
         store_lbl = T("recorded traffic", 18, BAD).next_to(bars, DOWN, buff=0.1)
         VGroup(bars, store_lbl).next_to(spy, RIGHT, buff=0.6).shift(UP * 0.15)
+        self.cue("rec_beep")
         self.play(FadeIn(spy, shift=UP * 0.3), Create(tap), FadeIn(bars), FadeIn(store_lbl), run_time=0.9)
 
+        self.cue("data_blip")
         self.play(LaggedStart(*[send(packet(OLD), wire, 1.6) for _ in range(3)], lag_ratio=0.3))
         slots = [bars[i].get_center() for i in range(3)]
         recorded = VGroup(*[packet(OLD).scale(0.7).move_to(wire.get_center()) for _ in range(3)])
@@ -219,14 +234,18 @@ class Pitch(Slide):
         self.pause()
 
         self.say("Years later…")
+        self.cue("time_warp")
         self.play(yr.animate.set_value(2036), run_time=2, rate_func=smooth)
         self.qc = qc = quantum_computer().scale(0.8).move_to(RIGHT * 5.7 + DOWN * 1.5)
         self.play(FadeIn(qc, shift=UP * 0.3), run_time=0.8)
         beam = Line(qc[0].get_left(), bars.get_right(), stroke_color=PURPLE_A, stroke_width=6)
+        self.cue("quantum_zap")
         self.play(ShowPassingFlash(beam.copy(), time_width=0.6), run_time=0.7)
+        self.cue("unlock")
         self.play(ShowPassingFlash(beam.copy(), time_width=0.6), *[r.lock.open() for r in recorded], run_time=0.7)
         names = ["Sofia Shah · 46913810", "Noah Evans · 23756669", "Chloe Patel · 89254563"]
         leaked = VGroup(*[M(n, 18, YELLOW).move_to(slots[i]) for i, n in enumerate(names)])
+        self.cue("error_glitch")
         self.play(FadeOut(bars), LaggedStart(*[ReplacementTransform(recorded[i], leaked[i]) for i in range(3)],
                                              lag_ratio=0.15), run_time=1)
         self.say("Data that must stay secret for 10+ years is already at risk", YELLOW)
@@ -244,6 +263,7 @@ class Pitch(Slide):
         new_srv = server("Legacy bank server").move_to(srv)
         self.play(Transform(srv, new_srv), run_time=0.4)
         old_lock = Lock(OLD, "RSA", s=0.9).next_to(srv[0], LEFT, buff=0.25)
+        self.cue("lock_click")
         self.play(FadeIn(old_lock, scale=0.8), run_time=0.5)
         self.say("Rewriting old systems is slow, expensive and risky")
         self.pause()
@@ -253,6 +273,7 @@ class Pitch(Slide):
         outer = Line(client[0].get_right() + RIGHT * 0.2, gw.box.get_left(), stroke_color=PQ, stroke_width=5)
         inner = Line(gw.box.get_right(), srv[0].get_left() + LEFT * 0.1, stroke_color=GREY_B, stroke_width=3)
         mid = outer.get_center()
+        self.cue("whoosh")
         self.play(FadeIn(gw, shift=LEFT * 1.5), FadeOut(old_lock), ReplacementTransform(wire, outer),
                   FadeIn(inner), spy.animate.move_to([mid[0], -1.1, 0]),
                   Transform(tap, DashedLine(mid, [mid[0], -1.1 + 0.62, 0], stroke_color=BAD, dash_length=0.08)),
@@ -262,6 +283,7 @@ class Pitch(Slide):
         self.play(FadeIn(inner_lbl), FadeIn(unchanged), run_time=0.6)
         self.say("Outside link: hybrid TLS, X25519 + ML-KEM-768 (NIST FIPS 203)", PQ)
 
+        self.cue("data_blip")
         self.play(LaggedStart(*[send(packet(PQ), outer, 1.3) for _ in range(3)], lag_ratio=0.3))
         rec = VGroup(*[packet(PQ).scale(0.7) for _ in range(3)]).arrange(RIGHT, buff=0.15)
         rec.next_to(spy, RIGHT, buff=0.5)
@@ -270,9 +292,11 @@ class Pitch(Slide):
         self.say("The quantum computer tries again…")
         beam = Line(qc[0].get_left(), rec.get_right(), stroke_color=PURPLE_A, stroke_width=6)
         for _ in range(2):
+            self.cue("quantum_zap")
             self.play(ShowPassingFlash(beam.copy(), time_width=0.6),
                       *[Wiggle(r.lock, scale_value=1.15, rotation_angle=0.05 * TAU) for r in rec], run_time=0.8)
         self.say("…and the recordings stay locked", GOOD)
+        self.cue("success_chime")
         self.play(Circumscribe(rec, color=GOOD), run_time=1)
         self.pause()
 
@@ -282,6 +306,7 @@ class Pitch(Slide):
         self.play(FadeIn(p), run_time=0.2)
         self.play(p.animate.move_to(outer.get_end() + LEFT * 0.45), run_time=1.0, rate_func=linear)
         cross = Cross(p, stroke_color=BAD, stroke_width=6)
+        self.cue("denied")
         self.play(Create(cross), Indicate(gw.box, color=BAD), run_time=0.6)
         self.play(VGroup(p, cross).animate.shift(LEFT * 1.5).set_opacity(0), run_time=0.7)
         self.say("Strict mode: no quantum-safe lock, no connection", GOOD)
@@ -314,9 +339,11 @@ class Pitch(Slide):
         blob = VGroup(blob_box, hexrows.move_to(blob_box)).move_to(RIGHT * 4.3 + UP * 0.4)
         blob_lbl = T("bank_records.json.locked", 18, INK).next_to(blob_box, DOWN, buff=0.15)
         self.say("Step 1: a fresh AES-256 key scrambles the file")
+        self.cue("soft_pop")
         self.play(FadeIn(aes_key, shift=DOWN * 0.3), FadeIn(aes_lbl), run_time=0.6)
         self.play(GrowArrow(arrow), FadeIn(gcm), aes_key.animate.move_to(arrow.get_center() + UP * 0.45),
                   aes_lbl.animate.move_to(arrow.get_center() + UP * 0.95), run_time=0.8)
+        self.cue("scramble")
         self.play(TransformFromCopy(file_[:2], blob), FadeIn(blob_lbl), run_time=1.2)
         self.pause()
 
@@ -328,6 +355,7 @@ class Pitch(Slide):
         env_lbl = T("wrapped with ML-KEM-768", 18, PQ).next_to(envelope, DOWN, buff=0.12)
         self.say("Step 2: the key itself is locked with ML-KEM-768 and stored beside the file", PQ)
         self.play(FadeIn(envelope, shift=UP * 0.3), FadeIn(env_lbl), FadeOut(aes_lbl), run_time=0.6)
+        self.cue("lock_click")
         self.play(aes_key.animate.scale(0.7).move_to(env.get_center() + DOWN * 0.15), run_time=0.8)
         self.play(Indicate(envelope, color=PQ), run_time=0.6)
         self.say("Only the private key can unlock it; change one byte and unlock refuses", GOOD)
@@ -356,12 +384,14 @@ class Pitch(Slide):
                                        fill_color=GREY_E, fill_opacity=1)
         card = VGroup(card_bg, body).scale(0.95).next_to(client, DOWN, buff=0.35).to_edge(LEFT, buff=0.4)
         self.say("The client offers the quantum-safe lock, and the old one as a fallback")
+        self.cue("soft_pop")
         self.play(FadeIn(card, shift=UP * 0.2), run_time=0.8)
         self.pause()
 
         self.play(card.animate.next_to(mitm, DOWN, buff=0.35), run_time=1.2)
         strike = Line(r1.get_left() + LEFT * 0.05, r1.get_right() + RIGHT * 0.05, stroke_color=BAD, stroke_width=5)
         self.say("The attacker deletes the quantum-safe option", BAD)
+        self.cue("marker_strike")
         self.play(Create(strike), run_time=0.6)
         self.play(FadeOut(VGroup(r1, strike)), run_time=0.5)
         self.play(r2.animate.next_to(head, DOWN, aligned_edge=LEFT, buff=0.15).align_to(head, LEFT), run_time=0.4)
@@ -380,8 +410,10 @@ class Pitch(Slide):
         trip_lbl = T("AI tripwire", 18, YELLOW).next_to(hist_bg, UP, buff=0.08)
         VGroup(hist_bg, hist, trip_lbl).move_to(RIGHT * 1.6 + DOWN * 1.65)
         self.play(FadeIn(hist_bg), FadeIn(trip_lbl), FadeIn(hist_lbl), run_time=0.5)
+        self.cue("data_blip")
         self.play(LaggedStart(*[GrowFromCenter(d) for d in hist_dots[:3]], lag_ratio=0.3), run_time=0.8)
         self.play(GrowFromCenter(hist_dots[3]), run_time=0.4)
+        self.cue("error_glitch")
         self.play(Flash(hist_dots[3], color=BAD, flash_radius=0.3), Indicate(hist_dots[3], color=BAD), run_time=0.8)
 
         banner = VGroup(RoundedRectangle(width=6.2, height=0.7, corner_radius=0.12, fill_color=BAD,
@@ -391,6 +423,7 @@ class Pitch(Slide):
         banner.next_to(self.title, DOWN, buff=0.25)
         cross = Cross(card, stroke_color=BAD, stroke_width=6)
         self.say("The gateway refuses it, and the AI flags it", GOOD)
+        self.cue("alarm")
         self.play(FadeIn(banner, scale=1.1), Create(cross), run_time=0.7)
         for _ in range(2):
             self.play(banner.animate.set_opacity(0.6), rate_func=there_and_back, run_time=0.6)
@@ -427,6 +460,7 @@ class Pitch(Slide):
                         T("this line + the seal before it", 17, INK)).arrange(DOWN, aligned_edge=LEFT, buff=0.05)
         legend.next_to(seals, RIGHT, buff=0.4)
         self.play(LaggedStart(*[FadeIn(r, shift=RIGHT * 0.3) for r in rows], lag_ratio=0.15), run_time=1.2)
+        self.cue("lock_click")
         self.play(LaggedStart(*[GrowFromCenter(s) for s in seals], lag_ratio=0.15),
                   LaggedStart(*[GrowArrow(a) for a in links], lag_ratio=0.15), run_time=1.2)
         self.play(FadeIn(legend), run_time=0.5)
@@ -437,12 +471,14 @@ class Pitch(Slide):
         spy = person("Attacker").scale(0.8).next_to(rows[2], LEFT, buff=0.4)
         self.play(FadeIn(spy, shift=RIGHT * 0.3), run_time=0.5)
         forged = M("10:03  branch-2  X25519MLKEM768  strong", 18, WHITE).move_to(rows[2][1], aligned_edge=LEFT)
+        self.cue("typing")
         self.play(Transform(rows[2][1], forged), rows[2][2].animate.set_color(PQ),
                   rows[2][0].animate.set_stroke(YELLOW, width=3), run_time=0.9)
         self.pause()
 
         self.say("Verifying: each line is checked against its seal")
         scan = SurroundingRectangle(rows[0], color=YELLOW, buff=0.06, corner_radius=0.1)
+        self.cue("scan")
         self.play(Create(scan), run_time=0.3)
         for i in range(3):
             if i:
@@ -450,6 +486,7 @@ class Pitch(Slide):
             if i < 2:
                 self.play(Indicate(seals[i], color=GOOD, scale_factor=1.15), run_time=0.35)
         broken = VGroup(seals[2][0].copy().set_fill(BAD), T("✗", 20, WHITE, weight=BOLD).move_to(seals[2]))
+        self.cue("error_glitch")
         self.play(Transform(seals[2], broken), Flash(seals[2], color=BAD), run_time=0.6)
         verdict = T("TAMPERED: line 3 changed after it was sealed", 24, BAD, weight=BOLD)
         verdict.next_to(rows, DOWN, buff=0.35).align_to(rows, LEFT)
@@ -478,6 +515,7 @@ class Pitch(Slide):
             values.add(T(f"{ms:.2f} ms", 22, WHITE).next_to(bar, RIGHT, buff=0.2))
         base = Line([baseline_x, 1.35, 0], [baseline_x, -0.45, 0], stroke_color=GREY_C, stroke_width=2)
         self.play(FadeIn(axis_title), FadeIn(labels), Create(base), run_time=0.6)
+        self.cue("riser")
         self.play(LaggedStart(*[GrowFromEdge(b, LEFT) for b in bars], lag_ratio=0.3), run_time=1.2)
         self.play(FadeIn(values), run_time=0.4)
 
@@ -485,6 +523,7 @@ class Pitch(Slide):
         thr = T("Throughput: 2,371 → 2,224 MB/s (−6%), same AES bulk cipher", 22, INK).next_to(delta, DOWN, buff=0.2)
         src = T("Measured on the team's LinuxONE VM (3 CPUs, loopback) · gateway/bench/benchmarks.md", 16, GREY_C)
         src.to_edge(DOWN, buff=0.35)
+        self.cue("soft_pop")
         self.play(Write(delta), run_time=0.8)
         self.play(FadeIn(thr), FadeIn(src), run_time=0.5)
         self.pause()
@@ -507,6 +546,7 @@ class Pitch(Slide):
             tick[1].move_to(tick[0])
             rows.add(VGroup(tick, T(name, 26, WHITE), T(detail, 20, GREY_B)).arrange(RIGHT, buff=0.3))
         rows.arrange(DOWN, aligned_edge=LEFT, buff=0.35).move_to(DOWN * 0.2)
+        self.cue("success_chime")
         self.play(LaggedStart(*[FadeIn(r, shift=RIGHT * 0.3) for r in rows], lag_ratio=0.2), run_time=1.8)
         self.say("Built and benchmarked on IBM LinuxONE · IBM Z Datathon 2026")
         self.pause()
@@ -519,6 +559,7 @@ class Pitch(Slide):
         live = VGroup(Dot(radius=0.09, color=BAD), T("LIVE", 22, WHITE, weight=BOLD)).arrange(RIGHT, buff=0.15)
         live.move_to(screen[1])
         self.play(FadeIn(sub, shift=UP * 0.2), FadeIn(screen, shift=UP * 0.3), run_time=0.8)
+        self.cue("rec_beep")
         self.play(FadeIn(live, scale=0.8), run_time=0.4)
         self.play(live[0].animate.set_opacity(0.25), rate_func=there_and_back, run_time=0.8)
         self.wait(0.5)

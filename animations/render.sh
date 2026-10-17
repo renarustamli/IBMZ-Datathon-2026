@@ -25,3 +25,5 @@ cd "$HERE"   # manim-slides writes its slide data to ./slides
 "$BIN/python" add_footage.py pitch.html footage/dashboard.mp4
 echo "animations/pitch.html ($(du -h pitch.html | cut -f1)) — open it, press F, then → to step through"
 "$BIN/python" make_video.py --length 150   # the pitch as one 2:30 MP4 (--narrated adds voice-over pauses)
+# second copy with sound effects (sounds from make_sfx.py, which needs ELEVENLABS_API_KEY once)
+if ls sfx/*.mp3 >/dev/null 2>&1; then "$BIN/python" add_sfx.py; else echo "no sfx/ yet: run make_sfx.py to make pitch_video_sfx.mp4"; fi
