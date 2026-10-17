@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PQC Tripwire</title>
+<style>
+  :root {
+    --bg: #f6f7f9; --panel: #ffffff; --text: #1b1f24; --muted: #5f6b7a; --line: #e2e6eb;
+    --safe: #1f8a4c; --safe-bg: #e5f4ea; --bad: #c62828; --bad-bg: #fdecec; --warn: #b26a00; --warn-bg: #fff3e0;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1216; --panel: #171b21; --text: #e6e9ee; --muted: #8b96a5; --line: #262c35;
+      --safe: #4cc38a; --safe-bg: #12291d; --bad: #ff6b6b; --bad-bg: #2e1517; --warn: #ffb547; --warn-bg: #2d2210;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text);
+         font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  main { max-width: 1200px; margin: 0 auto; padding: 20px 16px 40px; }
+  h1 { font-size: 18px; margin: 0 0 4px; }
+  .sub { color: var(--muted); margin: 0 0 16px; font-size: 13px; }
+  .banner { border-radius: 10px; padding: 18px 20px; font-size: 22px; font-weight: 700;
+            display: flex; justify-content: space-between; align-items: center; transition: background .3s; }
+  .banner.safe { background: var(--safe-bg); color: var(--safe); }
+  .banner.bad  { background: var(--bad-bg); color: var(--bad); animation: pulse 1.2s infinite; }
+  .banner small { font-size: 13px; font-weight: 500; }
+  @keyframes pulse { 50% { opacity: .75; } }
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin: 14px 0; }
+  .stat { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; }
+  .stat b { display: block; font-size: 22px; font-variant-numeric: tabular-nums; }
+  .stat span { color: var(--muted); font-size: 12px; }
+  .wrap { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { text-align: left; padding: 7px 10px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+  th { color: var(--muted); font-weight: 600; font-size: 12px; position: sticky; top: 0; background: var(--panel); }
+  td.reason { white-space: normal; min-width: 280px; }
+  tr.rule  td { background: var(--bad-bg); }
+  tr.model td { background: var(--warn-bg); }
+  .tag { display: inline-block; padding: 1px 8px; border-radius: 99px; font-size: 11px; font-weight: 700; }
+  .tag.ok { background: var(--safe-bg); color: var(--safe); }
+  .tag.rule { background: var(--bad); color: #fff; }
+  .tag.model { background: var(--warn); color: #fff; }
+  .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; }
+  .pq { color: var(--safe); font-weight: 600; }
+  .empty { padding: 30px; text-align: center; color: var(--muted); }
+</style>
+</head>
+<body>
+<main>
+  <h1>Quantum-Safe Gateway: Downgrade &amp; Anomaly Tripwire</h1>
+  <p class="sub">Reading <span class="mono">{{ log_file }}</span>. Layer 1: deterministic PQC-downgrade rule. Layer 2: kNN novelty model trained on normal traffic.</p>
+
+  <div id="banner" class="banner safe"><span id="status">Waiting for traffic…</span><small id="updated"></small></div>
+
+  <div class="stats">
+    <div class="stat"><b id="c-total">0</b><span>connections checked</span></div>
+    <div class="stat"><b id="c-strong">–</b><span>post-quantum (strong)</span></div>
+    <div class="stat"><b id="c-rule">0</b><span>downgrade alerts (rule)</span></div>
+    <div class="stat"><b id="c-model">0</b><span>anomaly alerts (AI model)</span></div>
+  </div>
+
+  <div class="wrap">
+    <table>
+      <thead><tr><th>Time</th><th>Client</th><th>TLS</th><th>Cipher</th><th>Groups offered</th><th>Chosen</th><th>Verdict</th><th>Reason</th></tr></thead>
+      <tbody id="rows"><tr><td colspan="8" class="empty">No connection notes yet.</td></tr></tbody>
+    </table>
+  </div>
+</main>
+<script>
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const pq = g => /MLKEM/i.test(g) ? `<span class="pq">${esc(g)}</span>` : esc(g);
+const time_ = ts => { const d = new Date(ts); return isNaN(d) ? esc(ts) : d.toISOString().slice(11, 19); };
+
+async function refresh() {
+  try {
+    const s = await (await fetch("/api/state")).json();
+    const c = s.counts, total = c.total || 0;
+    document.getElementById("c-total").textContent = total;
+    document.getElementById("c-strong").textContent = total ? Math.round(100 * (c.strong || 0) / total) + "%" : "–";
+    document.getElementById("c-rule").textContent = c.rule || 0;
+    document.getElementById("c-model").textContent = c.model || 0;
+
+    const b = document.getElementById("banner");
+    const latest = s.events.find(e => e.alert);
+    b.className = "banner " + (s.under_attack ? "bad" : "safe");
+    document.getElementById("status").textContent = !total ? "Waiting for traffic…"
+      : s.under_attack ? `ATTACK DETECTED: ${latest.by === "rule" ? "PQC downgrade" : "anomaly"} from ${latest.client_id}`
+      : "SECURE: all recent handshakes look normal";
+    document.getElementById("updated").textContent = "updated " + new Date().toLocaleTimeString();
+
+    if (!s.events.length) return;
+    document.getElementById("rows").innerHTML = s.events.map(e => `
+      <tr class="${e.by || ""}">
+        <td class="mono">${time_(e.ts)}</td>
+        <td class="mono">${esc(e.client_id)}</td>
+        <td>${esc(e.tls_version)}</td>
+        <td class="mono">${esc(e.cipher_suite)}</td>
+        <td class="mono">${(e.key_groups_offered || []).map(pq).join(", ")}</td>
+        <td class="mono">${pq(e.key_group_chosen)}</td>
+        <td>${e.by ? `<span class="tag ${e.by}">${e.by === "rule" ? "DOWNGRADE" : "AI ANOMALY"}</span>` : `<span class="tag ok">OK</span>`}</td>
+        <td class="reason">${e.alert ? esc(e.reason) : ""}</td>
+      </tr>`).join("");
+  } catch (err) {
+    document.getElementById("updated").textContent = "dashboard server unreachable";
+  }
+}
+refresh();
+setInterval(refresh, 2000);
+</script>
+</body>
+</html>

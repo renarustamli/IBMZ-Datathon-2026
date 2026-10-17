@@ -90,7 +90,9 @@ cd IBMZ-Datathon-2026
 
 <!-- REQUIRED for submission — list every open-source lib, framework, API, and dataset with links -->
 
-- [library] — [link] — [what it's used for]
+- scikit-learn — https://scikit-learn.org — kNN novelty model in the AI detector (`/detector`)
+- NumPy — https://numpy.org — feature vectors for the detector
+- Flask — https://flask.palletsprojects.com — live detector dashboard
 - [library] — [link] — [what it's used for]
 
 ## Team
