@@ -28,6 +28,22 @@ End-to-end test (starts a dummy backend on :9000 and the gateway, then connects 
 ./test.sh legacy   # legacy: both connect, mallory-laptop is logged as weak
 ```
 
+### Docker (native s390x on LinuxONE)
+
+The image is a multi-stage build. The final image is `scratch` with only `/gateway` and `/testclient` (about 9 MB), and no keys inside. `cert.pem`, `key.pem` and `logs/` are mounted at run time.
+
+```bash
+cd gateway                                # cert.pem and key.pem must be here
+docker compose up -d --build              # strict mode, gateway + dummy backend
+MODE=legacy docker compose up -d          # switch to legacy mode
+./testclient/testclient -id alice-laptop  # test from the host
+docker compose down
+```
+
+### Tunnel for clients without hybrid TLS
+
+`testclient -local 127.0.0.1:9100 -id alice-laptop` listens for plain TCP on 9100 and carries each connection to the gateway over hybrid TLS. A client that can't do ML-KEM itself (e.g. Python with OpenSSL 3.0) connects to 9100 unchanged. Add `-classical` to simulate a downgraded client.
+
 ### Modes
 
 | Mode | Accepted key exchange | Classical-only client |

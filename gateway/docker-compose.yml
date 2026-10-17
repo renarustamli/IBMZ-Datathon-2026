@@ -1,0 +1,18 @@
+# docker compose up -d --build            (strict mode)
+# MODE=legacy docker compose up -d        (legacy mode)
+# Needs cert.pem and key.pem in this folder (never committed).
+services:
+  backend:
+    image: python:3.12-alpine   # dummy legacy service, replace with the real one for the demo
+    command: ["python", "-m", "http.server", "9000"]
+  gateway:
+    build: .
+    image: quantum-safe-gateway
+    command: ["-mode", "${MODE:-strict}", "-listen", ":8443", "-backend", "backend:9000"]
+    ports:
+      - "8443:8443"
+    volumes:
+      - ./cert.pem:/certs/cert.pem:ro
+      - ./key.pem:/certs/key.pem:ro
+      - ./logs:/data/logs
+    depends_on: [backend]
