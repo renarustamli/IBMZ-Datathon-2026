@@ -1,0 +1,3 @@
+manim==0.21.0        # manim-slides 5.7.0 breaks on 0.22 (config.write_to_movie was removed)
+manim-slides==5.7.0
+playwright==1.64.0

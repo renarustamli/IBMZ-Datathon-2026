@@ -19,3 +19,10 @@ gateway/probe/
 test_bad/
 captures/
 legacy_server/connection_notes.jsonl
+
+# demo + pitch animation (E)
+run/
+.venv-anim/
+animations/media/
+animations/slides/
+PITCH_SCRIPT.md

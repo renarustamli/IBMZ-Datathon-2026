@@ -5,117 +5,417 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>PQC Tripwire</title>
 <style>
+  /* Series colours validated with the dataviz palette checker on both panel surfaces. */
   :root {
-    --bg: #f6f7f9; --panel: #ffffff; --text: #1b1f24; --muted: #5f6b7a; --line: #e2e6eb;
-    --safe: #1f8a4c; --safe-bg: #e5f4ea; --bad: #c62828; --bad-bg: #fdecec; --warn: #b26a00; --warn-bg: #fff3e0;
+    color-scheme: light;
+    --bg: #f6f7f9; --panel: #ffffff; --text: #1b1f24; --muted: #5f6b7a; --faint: #8a94a3; --line: #e2e6eb; --grid: #eef0f3;
+    --pq: #1baf7a; --pq-track: #d3f1e5; --classical: #eb6834; --refused: #9aa3ae; --dot: #b4bcc6;
+    --good: #0ca30c; --warning: #fab219; --serious: #ec835a; --critical: #d03b3b;
+    --bad-bg: #fdecec; --warn-bg: #fff6e0; --safe-bg: #e5f4ea; --safe: #1f8a4c; --bad: #c62828;
   }
   @media (prefers-color-scheme: dark) {
-    :root {
-      --bg: #0f1216; --panel: #171b21; --text: #e6e9ee; --muted: #8b96a5; --line: #262c35;
-      --safe: #4cc38a; --safe-bg: #12291d; --bad: #ff6b6b; --bad-bg: #2e1517; --warn: #ffb547; --warn-bg: #2d2210;
+    :root:where(:not([data-theme="light"])) {
+      color-scheme: dark;
+      --bg: #0f1216; --panel: #171b21; --text: #e6e9ee; --muted: #8b96a5; --faint: #66707d; --line: #262c35; --grid: #20252d;
+      --pq: #199e70; --pq-track: #173a2f; --classical: #d95926; --refused: #5d6672; --dot: #4a525d;
+      --bad-bg: #2e1517; --warn-bg: #2d2410; --safe-bg: #12291d; --safe: #4cc38a; --bad: #ff6b6b;
     }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --bg: #0f1216; --panel: #171b21; --text: #e6e9ee; --muted: #8b96a5; --faint: #66707d; --line: #262c35; --grid: #20252d;
+    --pq: #199e70; --pq-track: #173a2f; --classical: #d95926; --refused: #5d6672; --dot: #4a525d;
+    --bad-bg: #2e1517; --warn-bg: #2d2410; --safe-bg: #12291d; --safe: #4cc38a; --bad: #ff6b6b;
   }
   * { box-sizing: border-box; }
   body { margin: 0; background: var(--bg); color: var(--text);
          font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
-  main { max-width: 1200px; margin: 0 auto; padding: 20px 16px 40px; }
-  h1 { font-size: 18px; margin: 0 0 4px; }
-  .sub { color: var(--muted); margin: 0 0 16px; font-size: 13px; }
-  .banner { border-radius: 10px; padding: 18px 20px; font-size: 22px; font-weight: 700;
-            display: flex; justify-content: space-between; align-items: center; transition: background .3s; }
+  main { max-width: 1280px; margin: 0 auto; padding: 20px 16px 48px; }
+  header { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+  h1 { font-size: 18px; margin: 0; }
+  h2 { font-size: 14px; margin: 0; font-weight: 600; }
+  .sub, .hint { color: var(--muted); font-size: 12px; margin: 2px 0 0; }
+  .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; }
+
+  .banner { border-radius: 10px; padding: 16px 20px; margin: 14px 0; font-size: 20px; font-weight: 700;
+            display: flex; justify-content: space-between; align-items: center; gap: 12px; transition: background .3s; }
   .banner.safe { background: var(--safe-bg); color: var(--safe); }
   .banner.bad  { background: var(--bad-bg); color: var(--bad); animation: pulse 1.2s infinite; }
   .banner small { font-size: 13px; font-weight: 500; }
   @keyframes pulse { 50% { opacity: .75; } }
-  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin: 14px 0; }
-  .stat { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; }
-  .stat b { display: block; font-size: 22px; font-variant-numeric: tabular-nums; }
-  .stat span { color: var(--muted); font-size: 12px; }
-  .stat.ok b { color: var(--safe); } .stat.tampered { background: var(--bad-bg); } .stat.tampered b { color: var(--bad); }
-  .stat.pending b, .stat.unavailable b { color: var(--muted); }
-  .wrap { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; overflow-x: auto; }
+
+  .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px; }
+  .tile { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; }
+  .tile .label { color: var(--muted); font-size: 12px; }
+  .tile .value { font-size: 26px; font-weight: 600; margin: 2px 0; }
+  .tile .detail { color: var(--muted); font-size: 12px; }
+  .tile.tampered { background: var(--bad-bg); }
+  .tile .detail { overflow-wrap: anywhere; }
+  .meter { height: 6px; border-radius: 3px; background: var(--pq-track); margin-top: 6px; overflow: hidden; }
+  .meter i { display: block; height: 100%; background: var(--pq); border-radius: 3px; transition: width .4s; }
+
+  .grid { display: grid; grid-template-columns: 2fr 1fr; gap: 10px; margin-top: 10px; }
+  @media (max-width: 860px) { .grid { grid-template-columns: 1fr; } }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 14px; min-width: 0; }
+  .card-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; flex-wrap: wrap; margin-bottom: 8px; }
+  .legend { display: flex; gap: 12px; flex-wrap: wrap; font-size: 12px; color: var(--muted); }
+  .legend span { display: inline-flex; align-items: center; gap: 5px; }
+  .legend i { width: 10px; height: 10px; border-radius: 2px; display: inline-block; }
+  .legend i.dot { border-radius: 50%; }
+  svg { display: block; width: 100%; overflow: visible; }
+  svg text { fill: var(--muted); font-size: 11px; }
+  .empty { padding: 24px; text-align: center; color: var(--muted); font-size: 13px; }
+
+  .tablewrap { overflow-x: auto; }
   table { width: 100%; border-collapse: collapse; font-size: 13px; }
-  th, td { text-align: left; padding: 7px 10px; border-bottom: 1px solid var(--line); white-space: nowrap; }
-  th { color: var(--muted); font-weight: 600; font-size: 12px; position: sticky; top: 0; background: var(--panel); }
-  td.reason { white-space: normal; min-width: 320px; }
-  td.reason small { display: block; color: var(--muted); font-size: 11px; margin-top: 2px; }
-  tr.rule  td { background: var(--bad-bg); }
+  th, td { text-align: left; padding: 7px 10px; border-bottom: 1px solid var(--line); white-space: nowrap; vertical-align: top; }
+  th { color: var(--muted); font-weight: 600; font-size: 12px; background: var(--panel); }
+  td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+  td.wrap { white-space: normal; min-width: 260px; }
+  td.wrap small { display: block; color: var(--muted); font-size: 11px; margin-top: 2px; }
+  tr.rule td { background: var(--bad-bg); }
   tr.model td { background: var(--warn-bg); }
-  .tag { display: inline-block; padding: 1px 8px; border-radius: 99px; font-size: 11px; font-weight: 700; }
-  .tag.ok { background: var(--safe-bg); color: var(--safe); }
-  .tag.rule { background: var(--bad); color: #fff; }
-  .tag.model { background: var(--warn); color: #fff; }
-  .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; }
+  .chip { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 600; }
+  .chip b { width: 16px; height: 16px; border-radius: 50%; display: inline-grid; place-items: center;
+            font-size: 10px; color: #fff; }
+  .minimeter { display: inline-block; width: 60px; height: 6px; border-radius: 3px; background: var(--pq-track);
+               vertical-align: middle; margin-right: 6px; overflow: hidden; }
+  .minimeter i { display: block; height: 100%; background: var(--pq); }
   .pq { color: var(--safe); font-weight: 600; }
-  .empty { padding: 30px; text-align: center; color: var(--muted); }
+  button, label.toggle { font: inherit; font-size: 12px; color: var(--text); background: var(--panel);
+            border: 1px solid var(--line); border-radius: 6px; padding: 3px 10px; cursor: pointer; }
+  #tip { position: fixed; pointer-events: none; z-index: 10; background: var(--panel); color: var(--text);
+         border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; font-size: 12px;
+         box-shadow: 0 4px 16px rgba(0,0,0,.18); display: none; max-width: 320px; }
+  #tip .row { display: flex; align-items: center; gap: 6px; }
+  #tip .row i { width: 12px; height: 2px; display: inline-block; }
+  #tip strong { font-variant-numeric: tabular-nums; }
+  #tip .muted { color: var(--muted); }
 </style>
 </head>
 <body>
 <main>
-  <h1>Quantum-Safe Gateway: Downgrade &amp; Anomaly Tripwire</h1>
-  <p class="sub">Reading <span class="mono">{{ log_file }}</span>. Layer 1: deterministic PQC-downgrade rule. Layer 2: kNN novelty model trained on normal traffic.</p>
+  <header>
+    <div>
+      <h1>Quantum-Safe Gateway: Downgrade &amp; Anomaly Tripwire</h1>
+      <p class="sub">Reading <span class="mono">{{ log_file }}</span>. Layer 1: deterministic PQC-downgrade rule. Layer 2: kNN novelty model trained on normal traffic.</p>
+    </div>
+    <span class="sub" id="updated"></span>
+  </header>
 
-  <div id="banner" class="banner safe"><span id="status">Waiting for traffic…</span><small id="updated"></small></div>
+  <div id="banner" class="banner safe"><span id="status">Waiting for traffic…</span><small id="banner-detail"></small></div>
 
-  <div class="stats">
-    <div class="stat"><b id="c-total">0</b><span>connections checked</span></div>
-    <div class="stat"><b id="c-strong">–</b><span>post-quantum (strong)</span></div>
-    <div class="stat"><b id="c-rule">0</b><span>downgrade alerts (rule)</span></div>
-    <div class="stat"><b id="c-model">0</b><span>anomaly alerts (AI model)</span></div>
-    <div class="stat" id="seal-tile" title=""><b id="seal">–</b><span>log integrity (ML-DSA seals)</span></div>
-  </div>
+  <section class="tiles" aria-label="Key figures">
+    <div class="tile"><div class="label">Connections checked</div><div class="value" id="t-total">0</div><div class="detail" id="t-rate">–</div></div>
+    <div class="tile"><div class="label">Quantum-safe share</div><div class="value" id="t-pq">–</div>
+      <div class="meter"><i id="t-pq-meter" style="width:0"></i></div><div class="detail" id="t-pq-detail">of completed handshakes</div></div>
+    <div class="tile"><div class="label">Harvest-exposed connections</div><div class="value" id="t-exposed">0</div>
+      <div class="detail">classical-only key exchange: could be recorded now and decrypted later</div></div>
+    <div class="tile"><div class="label">Alerts</div><div class="value" id="t-alerts">0</div><div class="detail" id="t-alerts-detail">–</div></div>
+    <div class="tile"><div class="label">Clients needing action</div><div class="value" id="t-clients">0</div><div class="detail" id="t-clients-detail">–</div></div>
+    <div class="tile" id="seal-tile"><div class="label">Log integrity (ML-DSA seals)</div><div class="value" id="seal">–</div><div class="detail" id="seal-detail"></div></div>
+  </section>
 
-  <div class="wrap">
-    <table>
+  <section class="grid">
+    <div class="card">
+      <div class="card-head">
+        <div><h2>Traffic per minute</h2><p class="hint">Markers above a column: alerts in that minute</p></div>
+        <div class="legend"><span><i style="background:var(--pq)"></i>Quantum-safe</span><span><i style="background:var(--classical)"></i>Classical</span>
+          <span><i style="background:var(--refused)"></i>Refused by gateway</span><span><i class="dot" style="background:var(--critical)"></i>Downgrade</span>
+          <span><i class="dot" style="background:var(--warning)"></i>Anomaly</span></div>
+      </div>
+      <div id="c-timeline"></div>
+    </div>
+    <div class="card">
+      <div class="card-head">
+        <div><h2>Key exchange negotiated</h2><p class="hint">Completed handshakes</p></div>
+        <div class="legend"><span><i style="background:var(--pq)"></i>Post-quantum</span><span><i style="background:var(--classical)"></i>Classical</span></div>
+      </div>
+      <div id="c-groups"></div>
+    </div>
+  </section>
+
+  <section class="grid">
+    <div class="card">
+      <div class="card-head">
+        <div><h2>AI anomaly score, last 150 connections</h2><p class="hint">Distance from normal traffic (log scale). Above the line, the model raises an alert.</p></div>
+        <div class="legend"><span><i class="dot" style="background:var(--dot)"></i>Normal</span><span><i class="dot" style="background:var(--warning)"></i>AI anomaly</span>
+          <span><i class="dot" style="background:var(--critical)"></i>Downgrade rule</span></div>
+      </div>
+      <div id="c-scores"></div>
+    </div>
+    <div class="card">
+      <div class="card-head"><div><h2>Alerts by type</h2><p class="hint">Main reason per alert</p></div>
+        <div class="legend"><span><i style="background:var(--critical)"></i>Rule</span><span><i style="background:var(--warning)"></i>AI model</span></div></div>
+      <div id="c-alerts"></div>
+    </div>
+  </section>
+
+  <section class="card" style="margin-top:10px">
+    <div class="card-head">
+      <div><h2>Clients by risk</h2><p class="hint">Who to investigate first, and who still needs upgrading to quantum-safe encryption</p></div>
+      <button id="clients-more" type="button" hidden></button>
+    </div>
+    <div class="tablewrap"><table>
+      <thead><tr><th>Status</th><th>Client</th><th class="num">Connections</th><th>Quantum-safe</th><th>Last key exchange</th><th>TLS</th><th class="num">Alerts</th><th>Latest finding</th></tr></thead>
+      <tbody id="clients"><tr><td colspan="8" class="empty">No clients yet.</td></tr></tbody>
+    </table></div>
+  </section>
+
+  <section class="card" style="margin-top:10px">
+    <div class="card-head">
+      <div><h2>Live connection feed</h2><p class="hint">Newest first</p></div>
+      <label class="toggle"><input type="checkbox" id="alerts-only"> Alerts only</label>
+    </div>
+    <div class="tablewrap"><table>
       <thead><tr><th>Time</th><th>Client</th><th>TLS</th><th>Cipher</th><th>Groups offered</th><th>Chosen</th><th>Verdict</th><th>Reason</th></tr></thead>
       <tbody id="rows"><tr><td colspan="8" class="empty">No connection notes yet.</td></tr></tbody>
-    </table>
-  </div>
+    </table></div>
+  </section>
 </main>
+<div id="tip" role="tooltip"></div>
 <script>
+// ?theme=light|dark forces a theme (e.g. for a projector); otherwise the OS setting wins
+const forced = new URLSearchParams(location.search).get("theme");
+if (forced === "light" || forced === "dark") document.documentElement.dataset.theme = forced;
+const $ = id => document.getElementById(id);
 const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
-const pq = g => /MLKEM/i.test(g) ? `<span class="pq">${esc(g)}</span>` : esc(g);
-const time_ = ts => { const d = new Date(ts); return isNaN(d) ? esc(ts) : d.toISOString().slice(11, 19); };
+const isPQ = g => /MLKEM|KYBER/i.test(g || "");
+const pq = g => isPQ(g) ? `<span class="pq">${esc(g)}</span>` : esc(g);
+const hhmmss = ts => { const d = new Date(ts); return isNaN(d) ? String(ts ?? "") : d.toISOString().slice(11, 19); };
+const hhmm = t => String(t).slice(11, 16);
+const fmt = n => n >= 10000 ? (n / 1000).toFixed(1).replace(/\.0$/, "") + "K" : n.toLocaleString();
+const css = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+const NS = "http://www.w3.org/2000/svg";
+function el(tag, attrs = {}, parent) {
+  const e = document.createElementNS(NS, tag);
+  for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, v);
+  if (parent) parent.appendChild(e);
+  return e;
+}
+function text(parent, x, y, s, attrs = {}) { const t = el("text", {x, y, ...attrs}, parent); t.textContent = s; return t; }
+function niceMax(v) { if (v <= 4) return 4; const p = 10 ** Math.floor(Math.log10(v)); for (const m of [1, 2, 2.5, 5, 10]) if (m * p >= v) return m * p; }
+// 4px rounded data-end, square at the baseline
+function barPath(x, y, w, h, horizontal) {
+  const r = Math.min(4, horizontal ? h / 2 : w / 2, horizontal ? w : h);
+  if (w <= 0 || h <= 0) return "";
+  return horizontal
+    ? `M${x},${y}h${w - r}a${r},${r} 0 0 1 ${r},${r}v${h - 2 * r}a${r},${r} 0 0 1 ${-r},${r}h${-(w - r)}z`
+    : `M${x},${y + h}v${-(h - r)}a${r},${r} 0 0 1 ${r},${-r}h${w - 2 * r}a${r},${r} 0 0 1 ${r},${r}v${h - r}z`;
+}
+
+// ---------- tooltip (one element; rows built with textContent) ----------
+const tip = $("tip");
+function showTip(evt, title, rows) {
+  tip.replaceChildren();
+  const h = document.createElement("div"); h.className = "muted"; h.textContent = title; tip.appendChild(h);
+  for (const [color, value, label] of rows) {
+    const r = document.createElement("div"); r.className = "row";
+    if (color) { const i = document.createElement("i"); i.style.background = color; r.appendChild(i); }
+    const s = document.createElement("strong"); s.textContent = value; r.appendChild(s);
+    if (label) { const l = document.createElement("span"); l.className = "muted"; l.textContent = label; r.appendChild(l); }
+    tip.appendChild(r);
+  }
+  tip.style.display = "block";
+  const pad = 14, w = tip.offsetWidth, hgt = tip.offsetHeight;
+  tip.style.left = Math.min(evt.clientX + pad, innerWidth - w - 8) + "px";
+  tip.style.top = Math.max(8, evt.clientY - hgt - pad) + "px";
+}
+const hideTip = () => { tip.style.display = "none"; };
+function hover(target, fn) {
+  target.addEventListener("pointermove", fn);
+  target.addEventListener("pointerleave", hideTip);
+  target.setAttribute("tabindex", "0");
+  target.addEventListener("focus", e => { const b = target.getBoundingClientRect(); fn({clientX: b.x + b.width / 2, clientY: b.y}); });
+  target.addEventListener("blur", hideTip);
+}
+
+// ---------- charts ----------
+function timeline(host, data) {
+  host.replaceChildren();
+  if (!data.length) { host.innerHTML = '<div class="empty">No traffic yet.</div>'; return; }
+  const W = host.clientWidth || 600, H = 220, m = {t: 14, r: 8, b: 22, l: 34};
+  const svg = el("svg", {viewBox: `0 0 ${W} ${H}`, height: H, role: "img", "aria-label": "Connections per minute"}, host);
+  const iw = W - m.l - m.r, ih = H - m.t - m.b;
+  const max = niceMax(Math.max(...data.map(d => d.strong + d.weak + d.refused)));
+  const y = v => m.t + ih - (v / max) * ih;
+  for (let i = 0; i <= 4; i++) {
+    const v = max * i / 4;
+    el("line", {x1: m.l, x2: W - m.r, y1: y(v), y2: y(v), stroke: css(i ? "--grid" : "--line"), "stroke-width": 1}, svg);
+    text(svg, m.l - 6, y(v) + 4, fmt(Math.round(v)), {"text-anchor": "end"});
+  }
+  const slots = Math.max(data.length, 30), band = iw / slots, bw = Math.min(24, Math.max(2, band - 2));
+  const x0 = m.l + iw - data.length * band;
+  const every = Math.ceil(data.length / 6);
+  data.forEach((d, i) => {
+    const x = x0 + i * band + (band - bw) / 2;
+    let base = 0;
+    const segs = [["strong", "--pq"], ["weak", "--classical"], ["refused", "--refused"]].filter(([k]) => d[k] > 0);
+    segs.forEach(([k, c], j) => {
+      const top = j === segs.length - 1;
+      const y1 = y(base + d[k]), hh = y(base) - y1 - (j ? 2 : 0);  // 2px surface gap between segments
+      el(top ? "path" : "rect", top ? {d: barPath(x, y1, bw, hh, false), fill: css(c)}
+                                    : {x, y: y1, width: bw, height: Math.max(0, hh), fill: css(c)}, svg);
+      base += d[k];
+    });
+    const alerts = [["rule", "--critical"], ["model", "--warning"]].filter(([k]) => d[k] > 0);
+    alerts.forEach(([, c], j) => el("circle", {cx: x + bw / 2, cy: y(base) - 7 - j * 9, r: 4, fill: css(c),
+                                               stroke: css("--panel"), "stroke-width": 2}, svg));
+    if (i % every === 0) text(svg, x + bw / 2, H - 6, hhmm(d.t), {"text-anchor": "middle"});
+    const hit = el("rect", {x: x0 + i * band, y: m.t, width: band, height: ih, fill: "transparent"}, svg);
+    hover(hit, e => showTip(e, `${hhmm(d.t)} UTC`, [
+      [css("--pq"), d.strong, "quantum-safe"], [css("--classical"), d.weak, "classical"],
+      [css("--refused"), d.refused, "refused"],
+      ...(d.rule ? [[css("--critical"), d.rule, "downgrade alerts"]] : []),
+      ...(d.model ? [[css("--warning"), d.model, "anomaly alerts"]] : [])]));
+  });
+}
+
+function hbars(host, rows, colorOf, empty) {
+  host.replaceChildren();
+  if (!rows.length) { host.innerHTML = `<div class="empty">${empty}</div>`; return; }
+  const W = host.clientWidth || 300, bh = 18, gap = 12, labelW = Math.min(170, W * 0.48), valW = 40;
+  const H = rows.length * (bh + gap) + 4;
+  const svg = el("svg", {viewBox: `0 0 ${W} ${H}`, height: H, role: "img"}, host);
+  const max = Math.max(...rows.map(r => r[1])), iw = W - labelW - valW;
+  el("line", {x1: labelW, x2: labelW, y1: 0, y2: H - 4, stroke: css("--line"), "stroke-width": 1}, svg);
+  rows.forEach(([name, n], i) => {
+    const yy = i * (bh + gap) + 2, w = Math.max(3, (n / max) * iw);
+    const t = text(svg, labelW - 8, yy + bh / 2 + 4, name, {"text-anchor": "end"});
+    t.style.fill = css("--text");
+    el("path", {d: barPath(labelW, yy, w, bh, true), fill: colorOf(name)}, svg);
+    text(svg, labelW + w + 6, yy + bh / 2 + 4, fmt(n));
+    const hit = el("rect", {x: 0, y: yy - gap / 2, width: W, height: bh + gap, fill: "transparent"}, svg);
+    hover(hit, e => showTip(e, name, [[colorOf(name), fmt(n), ""]]));
+  });
+}
+
+function scores(host, pts, threshold) {
+  host.replaceChildren();
+  if (!pts.length || !threshold) { host.innerHTML = '<div class="empty">No scores yet.</div>'; return; }
+  const W = host.clientWidth || 600, H = 200, m = {t: 12, r: 8, b: 18, l: 34};
+  const svg = el("svg", {viewBox: `0 0 ${W} ${H}`, height: H, role: "img", "aria-label": "Anomaly scores"}, host);
+  const iw = W - m.l - m.r, ih = H - m.t - m.b, lo = 0.05, hi = 20;
+  const y = v => m.t + ih - (Math.log10(Math.min(hi, Math.max(lo, v))) - Math.log10(lo)) / (Math.log10(hi) - Math.log10(lo)) * ih;
+  for (const v of [0.1, 0.3, 1, 3, 10]) {
+    el("line", {x1: m.l, x2: W - m.r, y1: y(v), y2: y(v), stroke: css("--grid"), "stroke-width": 1}, svg);
+    text(svg, m.l - 6, y(v) + 4, String(v), {"text-anchor": "end"});
+  }
+  el("line", {x1: m.l, x2: W - m.r, y1: y(threshold), y2: y(threshold), stroke: css("--warning"), "stroke-width": 1.5}, svg);
+  text(svg, W - m.r, y(threshold) - 5, `alert threshold ${threshold.toFixed(2)}`, {"text-anchor": "end"});
+  const step = iw / Math.max(pts.length - 1, 149);
+  const x0 = m.l + iw - (pts.length - 1) * step;
+  text(svg, m.l, H - 3, "older"); text(svg, W - m.r, H - 3, "newest", {"text-anchor": "end"});
+  pts.forEach((p, i) => {
+    const cx = x0 + i * step, cy = y(p.score);
+    const color = css(p.by === "rule" ? "--critical" : p.by === "model" ? "--warning" : "--dot");
+    el("circle", {cx, cy, r: p.by ? 4.5 : 3.5, fill: color, stroke: css("--panel"), "stroke-width": 2}, svg);
+    const hit = el("circle", {cx, cy, r: 12, fill: "transparent"}, svg);  // 24px hit target
+    hover(hit, e => showTip(e, `${p.client} · ${hhmmss(p.ts)}`, [[color, p.score.toFixed(2),
+      p.by === "rule" ? "downgrade rule" : p.by === "model" ? "AI anomaly" : "normal"]]));
+  });
+}
+
+// ---------- tables ----------
+const STATUS = {
+  downgraded:    ["!", "--critical", "Downgraded"],
+  anomalous:     ["?", "--warning", "Anomalous"],
+  needs_upgrade: ["↑", "--serious", "Needs PQC upgrade"],
+  quantum_safe:  ["✓", "--good", "Quantum-safe"],
+};
+let showAllClients = false;
+$("clients-more").onclick = () => { showAllClients = !showAllClients; render(last); };
+function clientsTable(list) {
+  const shown = showAllClients ? list : list.slice(0, 12);
+  const more = $("clients-more");
+  more.hidden = list.length <= 12;
+  more.textContent = showAllClients ? "Show top 12" : `Show all ${list.length}`;
+  if (!shown.length) return;
+  $("clients").innerHTML = shown.map(c => {
+    const [icon, color, label] = STATUS[c.status];
+    const pct = Math.round(100 * c.pq_share);
+    return `<tr>
+      <td><span class="chip"><b style="background:var(${color})">${icon}</b>${label}</span></td>
+      <td class="mono">${esc(c.id)}</td>
+      <td class="num">${fmt(c.n)}</td>
+      <td><span class="minimeter"><i style="width:${pct}%"></i></span>${pct}%</td>
+      <td class="mono">${pq(c.group)}</td>
+      <td>${esc(c.tls)}</td>
+      <td class="num">${c.rule + c.model || ""}</td>
+      <td class="wrap">${esc(c.last_reason)}</td>
+    </tr>`;
+  }).join("");
+}
+function feed(events) {
+  const list = $("alerts-only").checked ? events.filter(e => e.alert) : events;
+  if (!list.length) { $("rows").innerHTML = `<tr><td colspan="8" class="empty">${events.length ? "No alerts in the recent feed." : "No connection notes yet."}</td></tr>`; return; }
+  $("rows").innerHTML = list.slice(0, 50).map(e => `
+    <tr class="${e.by || ""}">
+      <td class="mono">${esc(hhmmss(e.ts))}</td>
+      <td class="mono">${esc(e.client_id)}</td>
+      <td>${esc(e.tls_version)}</td>
+      <td class="mono">${esc(e.cipher_suite)}</td>
+      <td class="mono">${(e.key_groups_offered || []).map(pq).join(", ")}</td>
+      <td class="mono">${pq(e.key_group_chosen)}</td>
+      <td>${e.by ? `<span class="chip"><b style="background:var(${e.by === "rule" ? "--critical" : "--warning"})">!</b>${e.by === "rule" ? "Downgrade" : "AI anomaly"}</span>`
+                 : `<span class="chip"><b style="background:var(--good)">✓</b>OK</span>`}</td>
+      <td class="wrap">${e.alert ? `${esc(e.plain)}<small>${esc(e.reason)}</small>` : ""}</td>
+    </tr>`).join("");
+}
+$("alerts-only").onchange = () => render(last);
+
+// ---------- page ----------
+let last = null;
+function render(s) {
+  if (!s) return;
+  const ins = s.insights, t = ins.totals, total = t.total || 0, done = (t.strong || 0) + (t.weak || 0);
+  const alerts = (s.counts.rule || 0) + (s.counts.model || 0);
+  $("t-total").textContent = fmt(total);
+  $("t-rate").textContent = total ? `${ins.rate_per_min} per minute (last 5 min)` : "–";
+  const share = done ? Math.round(100 * (t.strong || 0) / done) : null;
+  $("t-pq").textContent = share === null ? "–" : share + "%";
+  $("t-pq-meter").style.width = (share || 0) + "%";
+  $("t-pq-detail").textContent = `of ${fmt(done)} completed handshakes` + (t.refused ? ` · ${fmt(t.refused)} refused` : "");
+  $("t-exposed").textContent = fmt(t.weak || 0);
+  $("t-alerts").textContent = fmt(alerts);
+  $("t-alerts-detail").textContent = `${s.counts.rule || 0} downgrade · ${s.counts.model || 0} AI anomaly`;
+  const p = ins.posture, needing = p.downgraded + p.anomalous + p.needs_upgrade;
+  $("t-clients").textContent = `${needing} / ${ins.clients.length}`;
+  $("t-clients-detail").textContent = `${p.downgraded} downgraded · ${p.anomalous} anomalous · ${p.needs_upgrade} need PQC upgrade`;
+
+  const seal = s.seal, tile = $("seal-tile");
+  tile.className = "tile " + seal.status;
+  $("seal").textContent = {ok: `✓ intact`, pending: "sealing…", tampered: "✗ TAMPERED", unavailable: "not sealed"}[seal.status];
+  $("seal-detail").textContent = {ok: `${fmt(seal.lines)} lines, every line signed`, pending: seal.detail, tampered: seal.detail,
+    unavailable: "start the sealer (qsafe_crypto.py follow) to enable"}[seal.status];
+  tile.title = seal.detail;  // full detail on hover
+
+  const latest = s.events.find(e => e.alert);
+  $("banner").className = "banner " + (s.under_attack ? "bad" : "safe");
+  $("status").textContent = !total ? "Waiting for traffic…"
+    : s.under_attack ? `ATTACK DETECTED: ${latest.by === "rule" ? "PQC downgrade" : "anomaly"} from ${latest.client_id}`
+    : "SECURE: all recent handshakes look normal";
+  $("banner-detail").textContent = s.under_attack && latest ? latest.plain || latest.reason : "";
+
+  timeline($("c-timeline"), ins.timeline);
+  hbars($("c-groups"), ins.groups, g => css(isPQ(g) ? "--pq" : "--classical"), "No completed handshakes yet.");
+  scores($("c-scores"), ins.scores, s.threshold);
+  hbars($("c-alerts"), ins.alert_types, n => css(/downgrade/i.test(n) ? "--critical" : "--warning"), "No alerts yet.");
+  clientsTable(ins.clients);
+  feed(s.events);
+}
 
 async function refresh() {
   try {
-    const s = await (await fetch("/api/state")).json();
-    const c = s.counts, total = c.total || 0;
-    document.getElementById("c-total").textContent = total;
-    document.getElementById("c-strong").textContent = total ? Math.round(100 * (c.strong || 0) / total) + "%" : "–";
-    document.getElementById("c-rule").textContent = c.rule || 0;
-    document.getElementById("c-model").textContent = c.model || 0;
-
-    const seal = s.seal, tile = document.getElementById("seal-tile");
-    tile.className = "stat " + seal.status;
-    tile.title = seal.detail;
-    document.getElementById("seal").textContent = {ok: `✓ intact (${seal.lines})`, pending: "sealing…",
-      tampered: "✗ TAMPERED", unavailable: "not sealed"}[seal.status];
-
-    const b = document.getElementById("banner");
-    const latest = s.events.find(e => e.alert);
-    b.className = "banner " + (s.under_attack ? "bad" : "safe");
-    document.getElementById("status").textContent = !total ? "Waiting for traffic…"
-      : s.under_attack ? `ATTACK DETECTED: ${latest.by === "rule" ? "PQC downgrade" : "anomaly"} from ${latest.client_id}`
-      : "SECURE: all recent handshakes look normal";
-    document.getElementById("updated").textContent = "updated " + new Date().toLocaleTimeString();
-
-    if (!s.events.length) return;
-    document.getElementById("rows").innerHTML = s.events.map(e => `
-      <tr class="${e.by || ""}">
-        <td class="mono">${time_(e.ts)}</td>
-        <td class="mono">${esc(e.client_id)}</td>
-        <td>${esc(e.tls_version)}</td>
-        <td class="mono">${esc(e.cipher_suite)}</td>
-        <td class="mono">${(e.key_groups_offered || []).map(pq).join(", ")}</td>
-        <td class="mono">${pq(e.key_group_chosen)}</td>
-        <td>${e.by ? `<span class="tag ${e.by}">${e.by === "rule" ? "DOWNGRADE" : "AI ANOMALY"}</span>` : `<span class="tag ok">OK</span>`}</td>
-        <td class="reason">${e.alert ? `${esc(e.plain)}<small>${esc(e.reason)}</small>` : ""}</td>
-      </tr>`).join("");
+    last = await (await fetch("/api/state")).json();
+    render(last);
+    $("updated").textContent = "updated " + new Date().toLocaleTimeString();
   } catch (err) {
-    document.getElementById("updated").textContent = "dashboard server unreachable";
+    $("updated").textContent = "dashboard server unreachable";
   }
 }
+addEventListener("resize", () => render(last));
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => render(last));
 refresh();
 setInterval(refresh, 2000);
 </script>
