@@ -1,114 +1,135 @@
-# Quantum-Safe Gateway for Legacy Systems
+# [Entities_IBM Z Datathon 2026 Project]
 
-> **[TEAM_NAME] — IBM Z Datathon 2026**
-> Theme 2: AI Secured — *Powerful AI. Protected Data.*
-> Event code: `SSF2026`
+> **IBM Z Datathon 2026 — Theme 2: AI Secured** · *Powerful AI. Protected Data.*
+> **Event code: SSF2026** · University of Manchester hub, 17–18 Oct 2026
+> Built from scratch during the hacking window on **IBM LinuxONE (s390x)**.
 
-A drop-in security layer that makes an old, vulnerable service **quantum-safe without rewriting it** — defending against "harvest now, decrypt later" attacks, running and benchmarked on **IBM LinuxONE (s390x)**.
+**Quantum-Safe Gateway** — a drop-in reverse proxy that makes an old, vulnerable service
+quantum-safe **without changing the service**, and an AI tripwire that spots attackers trying
+to force it back to breakable crypto.
 
 ---
 
-## The Problem
+## The problem
 
-Attackers can record encrypted traffic **today** and decrypt it years later, once quantum computers mature — the "harvest now, decrypt later" threat. RSA and elliptic-curve cryptography will not survive that transition. Any data that must stay secret for 10+ years (financial records, health data, government archives) is **already at risk**, even though the break hasn't happened yet.
+Attackers can record encrypted traffic **today** and decrypt it years from now, once quantum
+computers mature — "harvest now, decrypt later". Shor's algorithm breaks the RSA/ECC key
+exchange that protects almost all traffic; Grover's halves symmetric-key strength. Anything
+that must stay secret for a decade (financial, health, government data) is already at risk.
+Rewriting every legacy system is slow or impossible.
 
-Rewriting every legacy system to be quantum-safe is slow, expensive, and often impossible. Organisations need protection *now*, without touching the old code.
+## Our solution
 
-## Our Solution
+A gateway sits in front of the legacy service and transparently upgrades its security:
 
-A reverse-proxy **gateway** that sits in front of an existing service and transparently upgrades its security to post-quantum standards:
-
-1. **Hybrid post-quantum TLS** — X25519 + ML-KEM on the client side
-2. **Data at rest** — AES-256-GCM, with keys wrapped by ML-KEM
-3. **Integrity** — audit logs and documents signed with ML-DSA
-4. **AI downgrade/anomaly detector** — an ML model that learns normal handshake patterns and flags downgrade attacks (someone forcing a fallback to weak classical crypto) in real time
-5. **LinuxONE benchmarks** — classical vs post-quantum: handshake latency, throughput, key/ciphertext sizes
+1. **Hybrid post-quantum key exchange** — X25519 + **ML-KEM-768** (FIPS 203). Recorded traffic
+   can't be decrypted by a future quantum computer.
+2. **Post-quantum authentication** — the gateway's certificate is signed with **ML-DSA-65**
+   (FIPS 204), so a quantum attacker can't forge its identity either.
+3. **Data & log integrity** — AES-256-GCM encryption with ML-KEM-wrapped keys, and every line
+   of the connection log sealed with ML-DSA so tampering is detectable to the exact line.
+4. **AI downgrade/anomaly detector** — a model learns normal handshake patterns and raises a
+   red alert when someone forces a fallback to weak classical crypto, in real time.
+5. **Benchmarked on LinuxONE** — classical vs post-quantum handshake latency, throughput and
+   key sizes, measured on s390x.
 
 The legacy service is never modified. The gateway does all the work.
 
-## Why IBM Z / LinuxONE
+## Demo (three scenes)
 
-<!-- Fill this in with your actual evidence + screenshots — this is a top-scoring criterion -->
+1. **Break it:** the attacker factors the legacy service's (deliberately tiny) RSA key in
+   under a second and reads the "encrypted" records.
+2. **Defend it:** the same attacker, recording traffic through the gateway, finds no RSA to
+   factor — the post-quantum key exchange leaves nothing breakable on the wire.
+3. **Catch it:** a forced-downgrade attempt makes the detector's dashboard turn red, and the
+   ML-DSA-sealed log proves the record of the attack wasn't altered.
 
-- Post-quantum cryptography benchmarked on **s390x**, the architecture that runs the majority of the world's financial transactions
-- Confidential Computing / pervasive encryption: sensitive data stays protected [describe what you used]
-- Containerised and isolated deployment on LinuxONE [screenshot]
-- [Add: VM dashboard screenshot, running instance, model output]
+> The quantum attack is a **scaled-down simulation** — a 64-bit toy RSA key factored on a
+> normal CPU, to show the *shape* of Shor's threat in seconds. No quantum computer is used,
+> and production RSA-2048 is not broken. See each component's README for honest limitations.
 
-## Demo
+## Why IBM Z / LinuxONE (platform evidence)
 
-A simulated **harvest-now-decrypt-later** attacker:
+- Post-quantum crypto runs **natively on s390x** — the architecture behind most of the world's
+  financial transactions. Verified: `uname -m` → `s390x`, machine type **9175 (IBM z17)`,
+  `go version go1.27.2 linux/s390x`, Ubuntu 24.04.5 LTS.
+- **CPACF** on-chip crypto acceleration is present (`msa` CPU feature); AES-256-GCM via OpenSSL
+  uses it. The account is in the `cpacfstats` group.
+- **Containerised** on LinuxONE: a multi-stage Docker build produces a ~9 MB native s390x image
+  with no secrets baked in (`docker ps`, `uname -m`, `docker images`).
+- Go 1.27's standard library ships `crypto/mlkem` and `crypto/mldsa`, so the whole gateway is
+  post-quantum with **no third-party crypto** — a clean fit for the platform's security story.
 
-- **Legacy service:** a deliberately weak RSA key (scaled down for the demo) is factored in seconds → captured data is exposed.
-- **Through our gateway:** the same captured bytes stay unreadable.
-- **Live:** a downgrade attempt fires the detector and turns the dashboard red.
+*(Screenshots: see `/screenshots` — commands listed in `gateway/README.md`.)*
 
-> Note: the demo uses an intentionally small key to illustrate the attack in seconds. This is a scaled-down illustration, not a break of production-grade RSA.
-
-## Architecture
-
-<!-- Add your flowchart / diagram here (optional submission, worth including) -->
+## Repository structure
 
 ```
-[ Client ] --hybrid PQC-TLS--> [ GATEWAY ] --> [ Legacy Service ]
-                                   |
-                                   +--> AES-256-GCM at rest (ML-KEM-wrapped keys)
-                                   +--> ML-DSA signed audit logs
-                                   +--> connection logs --> [ AI Detector ] --> [ Dashboard ]
+gateway/        A — reverse proxy, hybrid PQ-TLS, ML-DSA cert, benchmarks, Docker  (Go)
+pqc/            B — lock/unlock + sign/verify + sealed logs (ML-KEM, ML-DSA, AES-256-GCM) (Python)
+legacy_server/  C — the weak toy-RSA legacy service                                 (Python)
+attacker/       C — harvest-now-decrypt-later + forced-downgrade simulations        (Python)
+detector/       D — AI downgrade/anomaly tripwire + live dashboard + log-integrity  (Python)
+practice_data/  C — synthetic traffic for the detector
 ```
 
-## Tech Stack
-
-- **Language(s):** [e.g. Go 1.24+ for the gateway/PQC, Python for the detector]
-- **Post-quantum crypto:** [ML-KEM, ML-DSA — via which library]
-- **AI/ML:** [model type, framework]
-- **Platform:** IBM LinuxONE Community Cloud (s390x)
-- [add the rest as you go]
-
-## Getting Started
+## Getting started
 
 ```bash
-# Clone
-git clone https://github.com/[USER]/IBMZ-Datathon-2026.git
+git clone https://github.com/renarustamli/IBMZ-Datathon-2026.git
 cd IBMZ-Datathon-2026
 
-# [Add real setup + run steps here]
+# A — gateway (Go 1.27+)
+cd gateway && go build -o gateway . && go build -o gencert/gencert ./gencert
+./gencert/gencert -pq            # post-quantum (ML-DSA-65) demo certificate
+./test.sh                        # end-to-end: hybrid client connects, classical refused
+
+# B — crypto layer (pure-Python PQ libs)
+pip install -r pqc/requirements-crypto.txt
+python pqc/qsafe_crypto.py selftest
+
+# C — legacy service + attacker demo
+pip install -r requirements.txt
+#   see SCENES.md for the three-scene run order
+
+# D — detector + dashboard
+pip install -r detector/requirements.txt    # or apt: python3-{numpy,scipy,sklearn,flask}
+LOG_FILE=../gateway/logs/connections.jsonl python detector/dashboard.py   # http://localhost:5000
 ```
 
-## Repository Structure
+## Open-source libraries (required for submission)
 
-```
-/gateway        # reverse proxy + hybrid PQC-TLS (Person A)
-/crypto         # lock/unlock/sign/verify functions (Person B)
-/demo           # legacy service + attacker simulation (Person C)
-/detector       # AI tripwire + dashboard (Person D)
-/benchmarks     # classical vs PQC results
-```
-<!-- Adjust to match what you actually build -->
+| Library | Used by | Purpose |
+|---|---|---|
+| Go standard library (`crypto/tls`, `crypto/mlkem`, `crypto/mldsa`, `crypto/x509`, `crypto/ecdh`) | A | Hybrid PQ-TLS, ML-DSA certificate, benchmarks |
+| [kyber-py](https://github.com/GiacomoPope/kyber-py) | B | ML-KEM-768 (FIPS 203), pure Python |
+| [dilithium-py](https://github.com/GiacomoPope/dilithium-py) | B | ML-DSA-65 (FIPS 204), pure Python |
+| [cryptography](https://cryptography.io) | B | AES-256-GCM (OpenSSL / CPACF) |
+| [SymPy](https://www.sympy.org) | C | Factoring the toy RSA key in the attack demo |
+| [scikit-learn](https://scikit-learn.org) | D | kNN novelty model for the anomaly detector |
+| [NumPy](https://numpy.org) | D | Feature vectors |
+| [Flask](https://flask.palletsprojects.com) | D | Live detector dashboard |
+| [Docker](https://www.docker.com) | A | Native s390x containerisation |
 
-## Open-Source Libraries & Resources
+All code was written during the 17–18 Oct 2026 hacking window. Standards: NIST FIPS 203
+(ML-KEM) and FIPS 204 (ML-DSA).
 
-<!-- REQUIRED for submission — list every open-source lib, framework, API, and dataset with links -->
+## Honest scope
 
-- scikit-learn — https://scikit-learn.org — kNN novelty model in the AI detector (`/detector`)
-- NumPy — https://numpy.org — feature vectors for the detector
-- Flask — https://flask.palletsprojects.com — live detector dashboard
-- [library] — [link] — [what it's used for]
+- The quantum attack is a simulation on a toy key (above).
+- Key exchange and authentication are post-quantum; the **session cipher is AES-128-GCM** —
+  Go's TLS 1.3 does not allow selecting AES-256. Grover leaves AES-128 at ~64-bit quantum
+  security, still impractical to attack but not AES-256.
+- ML-KEM/ML-DSA are young NIST standards; the key exchange stays **hybrid** (X25519 + ML-KEM)
+  so a break in ML-KEM alone doesn't lose the session.
+- Demo certificates are self-signed; a real deployment needs a PQ-capable certificate authority.
 
 ## Team
 
-| Role | Area |
-|------|------|
-| [Name] | Gateway + hardware + benchmarks |
-| [Name] | Crypto functions (encrypt / decrypt / sign / verify) |
-| [Name] | Legacy service + attacker simulation |
-| Rana | AI tripwire + dashboard |
-| [Name] | Pitch video + submission |
-
-## License
-
-[Add one if you want — MIT is a safe default for a hackathon]
-
----
-
-*Built from scratch during the IBM Z Datathon 2026 hacking window (Oct 17–18).*
+| Role | Area | Name |
+|------|------|------|
+| A | Gateway, PQ-TLS, hardware, benchmarks, containerisation | [NAME] |
+| B | Crypto layer (encrypt / decrypt / sign / verify / sealed logs) | [NAME] |
+| C | Legacy service + attacker simulations | [NAME] |
+| D | AI downgrade/anomaly detector + dashboard | Rana |
+| E | Pitch, video, submission | [NAME] |
