@@ -16,6 +16,7 @@ from flask import Flask, jsonify, render_template
 
 from detector import Detector, LOGS
 from explain import explain
+from insights import Insights
 import seal_check
 from schema import read_notes, normalize
 
@@ -28,6 +29,7 @@ app = Flask(__name__)
 lock = threading.Lock()
 recent = deque(maxlen=200)
 counts = Counter()
+insights = Insights()
 seal = {"status": "unavailable", "lines": 0, "detail": "checking…"}
 detector = Detector().train(read_notes(TRAIN_FILE))
 detector.reset()  # live clients are judged on their own history, not the training clients'
@@ -45,7 +47,7 @@ def tail():
         if st.st_ino != inode or st.st_size < pos:
             pos, inode = 0, st.st_ino
             with lock:
-                detector.reset(); recent.clear(); counts.clear()
+                detector.reset(); recent.clear(); counts.clear(); insights.reset()
         with open(LOG_FILE) as f:
             f.seek(pos)
             while True:
@@ -63,6 +65,7 @@ def tail():
                     note, r = {"raw": line.strip()}, {"alert": False, "by": None, "reason": f"unparsed: {e}", "score": 0, "plain": ""}
                 with lock:
                     recent.append({**note, **r})
+                    insights.add(note, r)
                     counts["total"] += 1
                     counts["strong"] += note.get("strong_or_weak") == "strong"
                     if r["by"]:
@@ -90,9 +93,10 @@ def state():
         events = list(recent)[::-1]
         c = dict(counts)
         s = dict(seal)
+        ins = insights.snapshot()
     under_attack = any(e["alert"] for e in events[:RED_WINDOW])
     return jsonify(under_attack=under_attack, counts=c, events=events[:100],
-                   threshold=detector.threshold, seal=s)
+                   threshold=detector.threshold, seal=s, insights=ins)
 
 
 if __name__ == "__main__":
