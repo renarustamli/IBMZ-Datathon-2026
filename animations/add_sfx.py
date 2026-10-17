@@ -40,7 +40,7 @@ GAIN = {
 }
 AMBIENT_GAIN = -25
 PEAK = -1.0  # dBFS every sound is normalised to before its mix gain
-MASTER = 4   # dB on the whole mix, before the limiter
+MASTER = 7   # dB on the whole mix, before the limiter
 
 
 def probe(path):
@@ -77,15 +77,17 @@ def main():
         args += ["-i", str(SFX / f"{name}.mp3")]
         ms = int(round(t * 1000))
         chains.append(f"[{i}:a]aformat=sample_rates=48000:channel_layouts=stereo,"
-                      f"volume={norm[name] + GAIN[name]:.1f}dB,adelay={ms}|{ms}[s{i}]")
+                      f"volume={norm[name] + GAIN[name]:.1f}dB,lowpass=f=7000,adelay={ms}|{ms}[s{i}]")
         labels.append(f"[s{i}]")
     n = len(events) + 1
     args += ["-stream_loop", "-1", "-i", str(SFX / "ambient.mp3")]
     chains.append(f"[{n}:a]aformat=sample_rates=48000:channel_layouts=stereo,atrim=0:{total:.2f},"
                   f"volume={norm['ambient'] + AMBIENT_GAIN:.1f}dB,afade=t=in:d=2,afade=t=out:st={total - 3:.2f}:d=3[amb]")
-    labels.append("[amb]")
-    graph = ";".join(chains) + ";" + "".join(labels) + \
-        f"amix=inputs={len(labels)}:normalize=0:duration=longest,atrim=0:{total:.2f},volume={MASTER}dB,alimiter=limit=0.9[aout]"
+    # every effect shares one bus with the same short echo, so they sound like one family in one room
+    sfx_bus = "".join(labels) + f"amix=inputs={len(labels)}:normalize=0:duration=longest," \
+        "aecho=0.8:0.6:90|180:0.18|0.10[bus]"
+    graph = ";".join(chains) + ";" + sfx_bus + ";[bus][amb]" + \
+        f"amix=inputs=2:normalize=0:duration=longest,atrim=0:{total:.2f},volume={MASTER}dB,alimiter=limit=0.9[aout]"
     args += ["-filter_complex", graph, "-map", "0:v", "-map", "[aout]", "-c:v", "copy",
              "-c:a", "aac", "-b:a", "192k", "-movflags", "+faststart", str(OUT)]
     subprocess.run(args, check=True)
