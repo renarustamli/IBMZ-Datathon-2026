@@ -31,6 +31,8 @@
   .stat { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; }
   .stat b { display: block; font-size: 22px; font-variant-numeric: tabular-nums; }
   .stat span { color: var(--muted); font-size: 12px; }
+  .stat.ok b { color: var(--safe); } .stat.tampered { background: var(--bad-bg); } .stat.tampered b { color: var(--bad); }
+  .stat.pending b, .stat.unavailable b { color: var(--muted); }
   .wrap { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; overflow-x: auto; }
   table { width: 100%; border-collapse: collapse; font-size: 13px; }
   th, td { text-align: left; padding: 7px 10px; border-bottom: 1px solid var(--line); white-space: nowrap; }
@@ -60,6 +62,7 @@
     <div class="stat"><b id="c-strong">–</b><span>post-quantum (strong)</span></div>
     <div class="stat"><b id="c-rule">0</b><span>downgrade alerts (rule)</span></div>
     <div class="stat"><b id="c-model">0</b><span>anomaly alerts (AI model)</span></div>
+    <div class="stat" id="seal-tile" title=""><b id="seal">–</b><span>log integrity (ML-DSA seals)</span></div>
   </div>
 
   <div class="wrap">
@@ -82,6 +85,12 @@ async function refresh() {
     document.getElementById("c-strong").textContent = total ? Math.round(100 * (c.strong || 0) / total) + "%" : "–";
     document.getElementById("c-rule").textContent = c.rule || 0;
     document.getElementById("c-model").textContent = c.model || 0;
+
+    const seal = s.seal, tile = document.getElementById("seal-tile");
+    tile.className = "stat " + seal.status;
+    tile.title = seal.detail;
+    document.getElementById("seal").textContent = {ok: `✓ intact (${seal.lines})`, pending: "sealing…",
+      tampered: "✗ TAMPERED", unavailable: "not sealed"}[seal.status];
 
     const b = document.getElementById("banner");
     const latest = s.events.find(e => e.alert);
