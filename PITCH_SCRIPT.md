@@ -1,6 +1,6 @@
 # Pitch script
 
-Narration for the animated presentation (`animations/pitch.html`). Each section is one press of **→**: start speaking as the animation plays, press → when you finish the line. About 3½ minutes at a normal pace when presenting the slideshow. The no-pause `animations/pitch_video.mp4` runs 1:49, too fast to read all of this over: trim the lines, or build the paced version with `python3 animations/make_video.py --narrated`.
+Narration for the animated presentation (`animations/pitch.html`). Each section is one press of **→**: start speaking as the animation plays, press → when you finish the line. About 3½ minutes at a normal pace when presenting the slideshow. The no-pause `animations/pitch_video.mp4` runs 2:30 (animation slowed to 0.68x, footage at real speed), too fast to read all of this over: trim the lines, or build the paced version with `python3 animations/make_video.py --narrated`.
 
 ---
 
