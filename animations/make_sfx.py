@@ -38,25 +38,17 @@ SOUNDS = {
     "scan": ("soft sine sweep upward with faint ticks", 1.2),
     "scramble": ("soft fast shuffle of sine blips", 1.2),
     "riser": ("soft rising sine tone swell", 1.2),
-    "ambient": ("very quiet warm synth pad, calm, steady, seamless loop", 20.0),
 }
 
 
 def generate(name, prompt, seconds, key):
     body = {"text": f"{prompt}. {STYLE}", "duration_seconds": seconds, "prompt_influence": 0.6}
-    if name == "ambient":
-        body["loop"] = True
     req = urllib.request.Request(API, data=json.dumps(body).encode(), method="POST",
                                  headers={"xi-api-key": key, "Content-Type": "application/json"})
     try:
         with urllib.request.urlopen(req, timeout=120) as r:
             return r.read()
     except urllib.error.HTTPError as e:
-        if body.pop("loop", None) and e.code in (400, 422):  # older models have no loop option
-            req = urllib.request.Request(API, data=json.dumps(body).encode(), method="POST",
-                                         headers={"xi-api-key": key, "Content-Type": "application/json"})
-            with urllib.request.urlopen(req, timeout=120) as r:
-                return r.read()
         raise SystemExit(f"{name}: HTTP {e.code} {e.read()[:300]!r}")
 
 
