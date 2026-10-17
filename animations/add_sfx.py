@@ -1,4 +1,4 @@
-"""Second version of the pitch video with sound effects (no voice): pitch_video.mp4 -> pitch_video_sfx.mp4
+"""Second version of the pitch video with sound effects only (no voice, no background): pitch_video.mp4 -> pitch_video_sfx.mp4
 
   python animations/add_sfx.py
 
@@ -38,7 +38,6 @@ GAIN = {
     "unlock": -7, "lock_click": -8, "denied": -8, "alarm": -9, "marker_strike": -8, "typing": -9,
     "error_glitch": -9, "success_chime": -9, "scan": -10, "scramble": -10, "riser": -10,
 }
-AMBIENT_GAIN = -25
 PEAK = -1.0  # dBFS every sound is normalised to before its mix gain
 MASTER = 7   # dB on the whole mix, before the limiter
 
@@ -65,12 +64,11 @@ def main():
     start = anim * slow                              # where the footage begins in the video
 
     events = [(t * slow, name) for t, name in cues] + [(start + t, name) for t, name in FOOTAGE_CUES]
-    missing = sorted({n for _, n in events if not (SFX / f"{n}.mp3").exists()} |
-                     ({"ambient"} if not (SFX / "ambient.mp3").exists() else set()))
+    missing = sorted({n for _, n in events if not (SFX / f"{n}.mp3").exists()})
     if missing:
         sys.exit(f"missing sounds {missing}: run make_sfx.py")
 
-    norm = {n: PEAK - peak_db(SFX / f"{n}.mp3") for n in {n for _, n in events} | {"ambient"}}
+    norm = {n: PEAK - peak_db(SFX / f"{n}.mp3") for n in {n for _, n in events}}
     args = ["ffmpeg", "-v", "error", "-y", "-i", str(VIDEO)]
     chains, labels = [], []
     for i, (t, name) in enumerate(events, start=1):
@@ -79,19 +77,15 @@ def main():
         chains.append(f"[{i}:a]aformat=sample_rates=48000:channel_layouts=stereo,"
                       f"volume={norm[name] + GAIN[name]:.1f}dB,lowpass=f=7000,adelay={ms}|{ms}[s{i}]")
         labels.append(f"[s{i}]")
-    n = len(events) + 1
-    args += ["-stream_loop", "-1", "-i", str(SFX / "ambient.mp3")]
-    chains.append(f"[{n}:a]aformat=sample_rates=48000:channel_layouts=stereo,atrim=0:{total:.2f},"
-                  f"volume={norm['ambient'] + AMBIENT_GAIN:.1f}dB,afade=t=in:d=2,afade=t=out:st={total - 3:.2f}:d=3[amb]")
-    # every effect shares one bus with the same short echo, so they sound like one family in one room
-    sfx_bus = "".join(labels) + f"amix=inputs={len(labels)}:normalize=0:duration=longest," \
-        "aecho=0.8:0.6:90|180:0.18|0.10[bus]"
-    graph = ";".join(chains) + ";" + sfx_bus + ";[bus][amb]" + \
-        f"amix=inputs=2:normalize=0:duration=longest,atrim=0:{total:.2f},volume={MASTER}dB,alimiter=limit=0.9[aout]"
+    # every effect shares one bus with the same short echo, so they sound like one family in one room;
+    # silence pads the track out to the video's full length
+    graph = ";".join(chains) + ";" + "".join(labels) + \
+        f"amix=inputs={len(labels)}:normalize=0:duration=longest,aecho=0.8:0.6:90|180:0.18|0.10," \
+        f"apad=whole_dur={total:.2f},atrim=0:{total:.2f},volume={MASTER}dB,alimiter=limit=0.9[aout]"
     args += ["-filter_complex", graph, "-map", "0:v", "-map", "[aout]", "-c:v", "copy",
              "-c:a", "aac", "-b:a", "192k", "-movflags", "+faststart", str(OUT)]
     subprocess.run(args, check=True)
-    print(f"{OUT.name}: {probe(OUT):.1f}s, {len(events)} sound effects + ambient bed "
+    print(f"{OUT.name}: {probe(OUT):.1f}s, {len(events)} sound effects "
           f"(animation x{slow:.3f}, footage from {start:.1f}s)")
 
 
