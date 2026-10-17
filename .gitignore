@@ -1,0 +1,4 @@
+*.pem
+gateway/gateway
+gateway/testclient/testclient
+*.log
