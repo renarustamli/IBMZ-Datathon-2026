@@ -1,14 +1,18 @@
 """Two-layer downgrade / anomaly tripwire over connection notes (INTERFACES.md §1).
 
 Layer 1 (rule):  a client that offered a post-quantum key group before now offers only
-                 classical groups -> downgrade alert. Deterministic, zero false positives.
+                 classical groups -> downgrade. It becomes a red alert when the model also
+                 finds the connection anomalous, or the same client downgraded within the last
+                 10 min. A lone downgrade that otherwise looks normal is "watch" (amber): real
+                 clients do this harmlessly now and then (C's practice data: benign_oddity).
 Layer 2 (model): a k-nearest-neighbour novelty detector trained on normal traffic, over
                  per-connection and per-client behavioural features. A connection far from
                  every normal connection it has seen is flagged. Catches what the rule can't see: PQC offered
                  but not chosen, cipher-only downgrades, connection bursts, new clients probing
                  with weak configurations.
 
-  det = Detector(); det.train(normal_notes); det.check(note) -> {alert, by, reason, score}
+  det = Detector(); det.train(normal_notes)
+  det.check(note) -> {alert, by: "rule" | "model" | "watch" | None, reason, factors, score}
 
   python detector.py   -> self-test on logs/attack_traffic.jsonl (needs generate_traffic.py first)
 """
@@ -22,12 +26,14 @@ from sklearn.neighbors import NearestNeighbors
 
 from schema import is_pqc, cipher_strength, parse_ts, read_notes
 
+REPEAT_WINDOW = 600  # s: a second downgrade from the same client within this is an attack
+
 HERE = os.path.dirname(os.path.abspath(__file__))
 LOGS = os.path.join(HERE, "..", "logs")
 
 FEATURES = [
     "tls13", "offers_pqc", "chosen_pqc", "pqc_offered_not_chosen", "cipher_strength",
-    "strength_drop", "n_groups", "new_group_set", "conn_per_min", "conn_per_10min",
+    "strength_drop", "new_group_set", "conn_per_min", "conn_per_10min",
     "hour_sin", "hour_cos",
 ]
 
@@ -39,7 +45,6 @@ EXPLAIN = {
     "pqc_offered_not_chosen": "client offered PQC but handshake settled on classical",
     "cipher_strength": "weak cipher suite",
     "strength_drop": "cipher weaker than this client normally negotiates",
-    "n_groups": "unusual number of key groups offered",
     "new_group_set": "key-group set never seen from this client",
     "conn_per_min": "connection burst (per minute)",
     "conn_per_10min": "unusually high connection rate (per 10 min)",
@@ -55,6 +60,7 @@ class _Client:
         self.strengths = Counter()
         self.group_sets = set()
         self.downgrades = 0
+        self.last_downgrade = None    # epoch s of the latest rule hit
 
 
 class Detector:
@@ -89,7 +95,6 @@ class Detector:
             float(offers_pqc and not chosen_pqc),
             float(strength),
             float(max(0, usual - strength)),
-            float(len(offered)),
             float(c.n >= 3 and frozenset(offered) not in c.group_sets),
             math.log1p(per_min),
             math.log1p(per_10),
@@ -105,7 +110,10 @@ class Detector:
         return None
 
     def _update(self, note, c, downgrade):
-        c.times.append(parse_ts(note["ts"]).timestamp())
+        now = parse_ts(note["ts"]).timestamp()
+        c.times.append(now)
+        if downgrade:
+            c.last_downgrade = now
         c.n += 1
         if any(is_pqc(g) for g in note["key_groups_offered"]):
             c.pqc_seen += 1
@@ -148,10 +156,17 @@ class Detector:
         c = self._client(note["client_id"])
         x = self.features(note, c)
         score = self._score(x) if self.model else 0.0
+        anomalous = bool(self.model) and score > self.threshold
         rule = self._rule(note, c)
-        if rule:
-            out = {"alert": True, "by": "rule", "reason": rule, "factors": ["pqc_stripped"]}
-        elif self.model and score > self.threshold:
+        repeat = rule and c.last_downgrade is not None and \
+            parse_ts(note["ts"]).timestamp() - c.last_downgrade <= REPEAT_WINDOW
+        if rule and (anomalous or repeat):
+            ctx = "repeated within 10 min" if repeat else "and the AI model rates the connection anomalous"
+            out = {"alert": True, "by": "rule", "reason": f"{rule} ({ctx})", "factors": ["pqc_stripped"]}
+        elif rule:
+            out = {"alert": False, "by": "watch", "factors": ["pqc_stripped"],
+                   "reason": f"WATCH: {rule}; otherwise normal, so treated as a one-off until it repeats"}
+        elif anomalous:
             factors = self._why(x, score)
             why = "; ".join(EXPLAIN[f] for f in factors) or "unusual combination of handshake features"
             if c.downgrades:  # context only: as a feature it would keep the client red forever
@@ -159,6 +174,8 @@ class Detector:
             out = {"alert": True, "by": "model", "reason": "ANOMALY: " + why, "factors": factors}
         else:
             out = {"alert": False, "by": None, "reason": "normal", "factors": []}
+        if note.get("key_group_chosen") == "rejected":
+            out["blocked"] = True  # gateway refused the handshake
         out["prior_downgrades"] = c.downgrades
         out["score"] = round(score, 4)
         self._update(note, c, bool(rule))
@@ -198,7 +215,7 @@ def self_test():
             continue
         d = by_type.setdefault(lab, Counter())
         d["total"] += 1
-        d[r["by"] or "missed"] += 1
+        d[r["by"] if r["alert"] else "missed"] += 1
 
     print(f"trained on {len(normal)} normal notes; threshold={det.threshold:.3f} (kNN distance)\n")
     print(f"{'attack type':<18}{'notes':>6}{'rule':>6}{'model':>7}{'missed':>8}")

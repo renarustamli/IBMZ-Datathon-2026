@@ -26,6 +26,10 @@ PLAIN = {
 
 
 def explain(note, result):
+    if result.get("by") == "watch":
+        return (f"{note.get('client_id', 'A client')} connected once without quantum-safe encryption. "
+                "Real devices occasionally do this harmlessly, so it is being watched; "
+                "a repeat within 10 minutes raises an alarm.")
     if not result.get("alert"):
         return "Normal, quantum-safe traffic." if note.get("strong_or_weak") == "strong" \
             else "Normal traffic from a client that only supports older encryption."
@@ -41,14 +45,16 @@ def template_explain(note, result):
     if not parts:
         text = f"The AI model found {who}'s connection unlike any normal traffic it has learned."
     else:
-        text = f"{who}: {parts[0]}."
+        text = f"{who}: {parts[0][0].upper()}{parts[0][1:]}."
         if len(parts) > 1:
             text += " Also, " + "; ".join(parts[1:]) + "."
     if result.get("by") == "model":
         text += " (Spotted by the AI model, not a fixed rule.)"
+    if result.get("blocked"):
+        text += " The gateway refused the connection, so no data was exposed."
     if result.get("prior_downgrades"):
         text += " This client was already caught in a downgrade earlier."
-    return text[0].upper() + text[1:]
+    return text
 
 
 def llm_explain(note, result):

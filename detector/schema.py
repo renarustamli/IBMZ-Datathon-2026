@@ -91,7 +91,8 @@ GROUP_CODES = {
 
 
 # Go's crypto/tls names for classical groups.
-GO_NAMES = {"X25519": "x25519", "CurveP256": "secp256r1", "CurveP384": "secp384r1", "CurveP521": "secp521r1"}
+GO_NAMES = {"X25519": "x25519", "CurveP256": "secp256r1", "CurveP384": "secp384r1", "CurveP521": "secp521r1",
+            "P-256": "secp256r1", "P-384": "secp384r1", "P-521": "secp521r1"}
 
 
 def group_name(g):
