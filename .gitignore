@@ -1,0 +1,4 @@
+test_bad/
+captures/
+legacy_server/connection_notes.jsonl
+__pycache__/
